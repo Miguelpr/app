@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,9 +8,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    body {
+    html, body {
       margin: 0;
       padding: 0;
+      width: 100%;
+      height: 100%;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -17,13 +20,11 @@
       color: white;
       font-family: 'Orbitron', Arial, sans-serif;
       overflow: hidden;
-      width: 100vw;
-      height: 100vh;
     }
     canvas {
       border: 2px solid #444;
-      width: 100vw;
-      height: 100vh;
+      width: 100%;
+      height: 100%;
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
@@ -79,8 +80,8 @@ let controlledCells = 0;
 const totalCells = 1600;
 let gameStatus = 'Playing';
 let gameHistory = [];
-let enemyDroneHealth = 70;
-let enemySpawnProbs = { drone: 0.65, turret: 0.35 };
+let enemyDroneHealth = 75; // Increased from 70 to make enemy drones more resilient
+let enemySpawnProbs = { drone: 0.6, turret: 0.4 }; // Adjusted to favor turrets more
 let spawnFlash = null;
 let shotEffects = [];
 let missileEffects = [];
@@ -98,30 +99,47 @@ let lastUnitPositions = [];
 
 function setup() {
   try {
-    // Calculate canvas size to fill the screen while maintaining aspect ratio
-    let aspectRatio = gridSize / gridSize; // 40x40 grid, so 1:1 aspect ratio
-    let canvasWidth = windowWidth;
-    let canvasHeight = windowHeight;
-    if (windowWidth / windowHeight > aspectRatio) {
-      canvasWidth = windowHeight * aspectRatio;
-    } else {
-      canvasHeight = windowWidth / aspectRatio;
-    }
+    // Set canvas to exact window dimensions for full-screen coverage
+    let canvasWidth = window.innerWidth;
+    let canvasHeight = window.innerHeight;
     let canvas = createCanvas(canvasWidth, canvasHeight);
-    canvas.style('display', 'block'); // Ensure canvas is visible
-    cellSize = width / gridSize;
+    canvas.style('display', 'block');
+    cellSize = min(canvasWidth, canvasHeight) / gridSize; // Use min to ensure grid fits
     playerGradient = drawingContext.createLinearGradient(0, 0, cellSize, cellSize);
     playerGradient.addColorStop(0, 'rgba(255, 255, 0, 0.1)');
     playerGradient.addColorStop(1, 'rgba(200, 200, 0, 0.2)');
     enemyGradient = drawingContext.createLinearGradient(0, 0, cellSize, cellSize);
     enemyGradient.addColorStop(0, 'rgba(255, 0, 0, 0.1)');
     enemyGradient.addColorStop(1, 'rgba(200, 0, 0, 0.2)');
-    console.log(`p5.js canvas initialized: ${canvasWidth}x${canvasHeight}, gridSize=40`);
+    console.log(`p5.js canvas initialized: ${canvasWidth}x${canvasHeight}, cellSize=${cellSize}`);
     resetGame();
   } catch (e) {
     console.error('Error in setup:', e);
     document.body.innerHTML = '<p style="color: red; text-align: center;">Failed to initialize game canvas. Please check console for errors.</p>';
   }
+}
+
+function windowResized() {
+  // Resize canvas dynamically to match window size
+  let canvasWidth = window.innerWidth;
+  let canvasHeight = window.innerHeight;
+  resizeCanvas(canvasWidth, canvasHeight);
+  cellSize = min(canvasWidth, canvasHeight) / gridSize;
+  console.log(`Canvas resized to: ${canvasWidth}x${canvasHeight}, cellSize=${cellSize}`);
+  // Update unit positions to align with new cellSize
+  playerUnits.forEach(u => {
+    let gridX = floor(u.x / (width / gridSize));
+    let gridY = floor(u.y / (height / gridSize));
+    u.x = gridX * cellSize + cellSize / 2;
+    u.y = gridY * cellSize + cellSize / 2;
+  });
+  enemyUnits.forEach(u => {
+    let gridX = floor(u.x / (width / gridSize));
+    let gridY = floor(u.y / (height / gridSize));
+    u.x = gridX * cellSize + cellSize / 2;
+    u.y = gridY * cellSize + cellSize / 2;
+  });
+  cacheTerrain(); // Recache terrain with new cellSize
 }
 
 function resetGame() {
@@ -266,7 +284,7 @@ function draw() {
     generateGold();
     checkGameStatus();
     if (frameCount % 3600 === 0) {
-      console.log(`Debug: frameCount=${frameCount}, FPS=${frameRate().toFixed(1)}, playerUnits=${playerUnits.length}, enemyUnits=${enemyUnits.length}, shotEffects=${shotEffects.length}, missileEffects=${missileEffects.length}, deathEffects=${deathEffects.length}`);
+      console.log(`Debug: frameCount=${frameCount}, FPS=${frameRate().toFixed(1)}, playerzilla: playerUnits=${playerUnits.length}, enemyUnits=${enemyUnits.length}, shotEffects=${shotEffects.length}, missileEffects=${missileEffects.length}, deathEffects=${deathEffects.length}`);
     }
   } catch (e) {
     console.error('Error in draw:', e);
@@ -956,32 +974,24 @@ function generateGold() {
   if (frameCount % 60 === 0) {
     gold += floor(controlledCells / 8) + 5;
     enemyGold += floor((totalCells - controlledCells) / 8) + 5;
-    let maxSpawns = 2;
+    let maxSpawns = 3; // Increased from 2 to allow more enemy spawns
     let spawns = 0;
-    let adjustedDroneProb = enemyUnits.length > 15 ? enemySpawnProbs.drone * 0.5 : enemySpawnProbs.drone;
-    if ((totalCells - controlledCells) <= 100 && enemyUnits.length < 20) {
+    let adjustedDroneProb = enemyUnits.length > 15 ? enemySpawnProbs.drone * 0.7 : enemySpawnProbs.drone; // Slightly less reduction for drone probability
+    if (enemyUnits.length < 20) {
       while (enemyGold >= 40 && spawns < maxSpawns && enemyUnits.length < 20) {
         let rand = random();
-        if (rand < adjustedDroneProb) {
+        if (rand < adjustedDroneProb && enemyGold >= 40) {
           enemyGold -= 40;
           spawnEnemy('drone');
+          spawns++;
         } else if (enemyGold >= 200) {
           enemyGold -= 200;
           spawnEnemy('turret');
+          spawns++;
         }
-        spawns++;
-      }
-    } else if (enemyUnits.length < 20) {
-      let rand = random();
-      if (rand < adjustedDroneProb && enemyGold >= 40) {
-        enemyGold -= 40;
-        spawnEnemy('drone');
-      } else if (rand < 1.0 && enemyGold >= 200) {
-        enemyGold -= 200;
-        spawnEnemy('turret');
       }
     }
-    if (enemyGold >= 500 && controlledCells > 0.6 * totalCells) {
+    if (enemyGold >= 500 && controlledCells > 0.5 * totalCells) { // Lowered threshold from 0.6 to 0.5
       let playerCells = [];
       for (let i = 0; i < gridSize; i++) {
         for (let j = 0; j < gridSize; j++) {
@@ -1085,29 +1095,29 @@ function updateEnemyStrategy() {
     
     if (lastRound.outcome === 'player_win') {
       if (lastRound.playerTurrets > totalPlayerUnits * 0.4) {
-        enemySpawnProbs.turret = Math.min(enemySpawnProbs.turret + 0.1, 0.45);
-        enemySpawnProbs.drone = Math.max(enemySpawnProbs.drone - 0.1, 0.55);
+        enemySpawnProbs.turret = Math.min(enemySpawnProbs.turret + 0.1, 0.5);
+        enemySpawnProbs.drone = Math.max(enemySpawnProbs.drone - 0.1, 0.5);
       }
       if (lastRound.playerDrones > totalPlayerUnits * 0.6) {
-        enemySpawnProbs.turret = Math.min(enemySpawnProbs.turret + 0.05, 0.45);
-        enemySpawnProbs.drone = Math.max(enemySpawnProbs.drone - 0.05, 0.55);
+        enemySpawnProbs.turret = Math.min(enemySpawnProbs.turret + 0.05, 0.5);
+        enemySpawnProbs.drone = Math.max(enemySpawnProbs.drone - 0.05, 0.5);
       }
       if (lastRound.playerGold > lastRound.enemyGold * 1.5) {
-        enemyDroneHealth = Math.min(enemyDroneHealth + 10, 80);
+        enemyDroneHealth = Math.min(enemyDroneHealth + 10, 85);
       }
       if (lastRound.playerCells > totalCells * 0.75) {
-        enemySpawnProbs.drone = Math.min(enemySpawnProbs.drone + 0.05, 0.75);
+        enemySpawnProbs.drone = Math.min(enemySpawnProbs.drone + 0.05, 0.7);
       }
     } else if (lastRound.outcome === 'enemy_win') {
       if (lastRound.enemyTurrets > totalEnemyUnits * 0.4) {
-        enemySpawnProbs.turret = Math.max(enemySpawnProbs.turret - 0.05, 0.25);
-        enemySpawnProbs.drone = Math.min(enemySpawnProbs.drone + 0.05, 0.75);
+        enemySpawnProbs.turret = Math.max(enemySpawnProbs.turret - 0.05, 0.3);
+        enemySpawnProbs.drone = Math.min(enemySpawnProbs.drone + 0.05, 0.7);
       }
       if (lastRound.playerCells < 100) {
-        enemyDroneHealth = Math.max(enemyDroneHealth - 10, 60);
+        enemyDroneHealth = Math.max(enemyDroneHealth - 10, 65);
       }
       if (totalPlayerUnits > totalEnemyUnits * 1.5) {
-        enemySpawnProbs.drone = Math.min(enemySpawnProbs.drone + 0.05, 0.75);
+        enemySpawnProbs.drone = Math.min(enemySpawnProbs.drone + 0.05, 0.7);
       }
     }
   }
