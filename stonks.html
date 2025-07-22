@@ -3,490 +3,370 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Stonks Simulator™ FAAMG Edition</title>
+<title>Stonks Simulator™ Candlestick Chart</title>
 <style>
   body {
-    margin: 0; font-family: Arial, sans-serif;
-    background-color: rgba(0,123,191,1);
-    color: white;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
+    font-family: Arial, sans-serif;
+    background:#f0f2f5;
+    margin:0; padding:0;
+    color:#333;
   }
   header {
-    padding: 15px;
-    background-color: rgba(0,123,191,1);
-    text-align: center;
+    background: rgba(0,123,191,1);
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    padding:10px;
   }
-  header h1 {
-    margin: 0;
-    font-size: 2.2em;
+  .stock-select {
+    cursor:pointer;
+    margin: 5px 10px;
+    color:white;
+    font-weight:bold;
+    display:flex;
+    align-items:center;
+    user-select:none;
   }
-  #stock-tabs {
-    display: flex;
-    background: rgba(255 255 255 / 0.1);
-    padding: 8px;
-    justify-content: center;
-    gap: 12px;
+  .stock-select img {
+    height: 28px;
+    margin-right: 8px;
   }
-  .tab {
-    padding: 8px 16px;
-    border-radius: 12px;
-    cursor: pointer;
-    background: rgba(255 255 255 / 0.15);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    user-select: none;
-    transition: background-color 0.3s;
+  .stock-select.selected {
+    text-decoration: underline;
   }
-  .tab.selected {
-    background: white;
-    color: rgba(0,123,191,1);
-    font-weight: bold;
+  .container {
+    max-width:900px;
+    margin: 20px auto;
+    background:white;
+    padding:15px;
+    border-radius:8px;
+    box-shadow:0 0 8px rgba(0,0,0,0.1);
   }
-  .tab img {
-    width: 24px;
-    height: 24px;
-  }
-  #main-panel {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 15px;
-    overflow: hidden;
-  }
-  #chart-container {
-    flex-grow: 1;
-    background: rgba(255 255 255 / 0.1);
-    border-radius: 12px;
-    padding: 12px;
+  #chartContainer {
     position: relative;
+    height: 320px;
+    border:1px solid #ccc;
+    border-radius:6px;
+    background:#fff;
   }
-  #canvas {
-    width: 100%;
-    height: 100%;
+  canvas {
     display: block;
+    margin: 0 auto;
   }
-  #controls {
-    margin-top: 12px;
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-  }
-  #controls button {
-    background: white;
-    color: rgba(0,123,191,1);
-    border: none;
-    border-radius: 6px;
-    font-weight: 600;
-    padding: 8px 20px;
-    cursor: pointer;
-    font-size: 1.1em;
-    transition: background-color 0.3s;
-  }
-  #controls button:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-  #status {
+  .controls {
     margin-top: 15px;
-    font-size: 1.2em;
     text-align: center;
   }
-  #portfolio {
-    margin-top: 20px;
-    background: rgba(255 255 255 / 0.12);
-    padding: 12px 15px;
-    border-radius: 10px;
-    max-height: 180px;
-    overflow-y: auto;
-  }
-  #portfolio table {
-    width: 100%;
-    border-collapse: collapse;
-    color: white;
-  }
-  #portfolio th, #portfolio td {
-    padding: 8px 6px;
-    text-align: center;
-    border-bottom: 1px solid rgba(255 255 255 / 0.2);
-  }
-  #portfolio th {
+  button {
     font-weight: bold;
-    font-size: 1em;
+    padding: 10px 20px;
+    margin: 0 10px;
+    cursor: pointer;
   }
-  #passive-earnings {
-    margin-top: 8px;
-    font-size: 1em;
-    opacity: 0.85;
+  button:disabled {
+    background: #ccc;
+    cursor: default;
+  }
+  .info {
+    margin-top: 10px;
+    text-align:center;
+    font-size:1.1em;
+  }
+  table {
+    width: 100%;
+    margin-top: 20px;
+    border-collapse: collapse;
     text-align: center;
   }
-  @media (max-width: 720px) {
-    #stock-tabs {
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    #controls {
-      flex-direction: column;
-      gap: 10px;
-    }
-    #controls button {
-      width: 100%;
-      font-size: 1.1em;
-      padding: 10px;
-    }
+  th, td {
+    border-bottom: 1px solid #ddd;
+    padding: 8px;
+  }
+  th {
+    background: #eee;
+  }
+  .profit {
+    color: green;
+  }
+  .loss {
+    color: red;
+  }
+  .summary {
+    margin-top: 10px;
+    font-weight: bold;
+    font-size: 1.2em;
   }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>💸 Stonks Simulator™ FAAMG Edition</h1>
-  <div>Buy and sell FAAMG stocks with simulated prices. Passive earnings +$1 every 3 seconds.</div>
-</header>
-
-<div id="stock-tabs"></div>
-
-<div id="main-panel">
-  <div id="chart-container">
-    <canvas id="canvas"></canvas>
+<header id="stockHeader"></header>
+<div class="container">
+  <div class="info">
+    Cash: $<span id="cashDisplay">1000.00</span> | Earnings: +$1 every 3 seconds
   </div>
-
-  <div id="controls">
+  <div id="chartContainer">
+    <canvas id="chart" width="860" height="320"></canvas>
+  </div>
+  <div class="controls">
     <button id="buyBtn">Buy</button>
     <button id="sellBtn">Sell</button>
   </div>
-
-  <div id="status"></div>
-  <div id="passive-earnings">🕒 Passive Earnings: +$1 every 3 seconds</div>
-
-  <div id="portfolio">
-    <h3>Your Portfolio</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Stock</th>
-          <th>Shares Owned</th>
-          <th>Total Cost ($)</th>
-          <th>Current Value ($)</th>
-          <th>Profit / Loss ($)</th>
-        </tr>
-      </thead>
-      <tbody id="portfolioBody"></tbody>
-    </table>
+  <table>
+    <thead>
+      <tr>
+        <th>Stock</th><th>Buy Price</th><th>Current Price</th><th>P/L ($)</th><th>P/L (%)</th>
+      </tr>
+    </thead>
+    <tbody id="portfolioBody"></tbody>
+  </table>
+  <div class="summary">
+    Total P/L: $<span id="totalPL">0.00</span>
   </div>
 </div>
 
 <script>
-const stocks = [
-  { symbol: "META", name: "Meta", price: 183.60, logo: "https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_(2019).png" },
-  { symbol: "AMZN", name: "Amazon", price: 124.88, logo: "https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg" },
-  { symbol: "AAPL", name: "Apple", price: 174.55, logo: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" },
-  { symbol: "MSFT", name: "Microsoft", price: 330.28, logo: "https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" },
-  { symbol: "GOOGL", name: "Alphabet", price: 128.35, logo: "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg" },
-];
+(() => {
+  // Stocks & logos
+  const stocks = {
+    META: { logo: 'https://logo.clearbit.com/meta.com', price: 500 },
+    AMZN: { logo: 'https://logo.clearbit.com/amazon.com', price: 185 },
+    AAPL: { logo: 'https://logo.clearbit.com/apple.com', price: 233 },
+    MSFT: { logo: 'https://logo.clearbit.com/microsoft.com', price: 430 },
+    GOOGL: { logo: 'https://logo.clearbit.com/abc.xyz', price: 190 }
+  };
 
-let cash = 1000;
-let currentStockIndex = 0;
+  let currentStock = 'META';
+  let cash = 1000;
+  let portfolio = [];
+  let transactions = [];
+  const history = {};
 
-// Price history: symbol -> array of candles
-let priceHistory = {};
-// Buy/sell history: symbol -> array of {index, type, price}
-let buySellHistory = {};
-// Portfolio: symbol -> { shares: int, totalCost: float }
-let portfolio = {};
+  // Initialize history with starting price array (simulate OHLC with close only)
+  for (const s in stocks) {
+    history[s] = [stocks[s].price];
+  }
 
-// Initialize histories and portfolio
-function init() {
-  stocks.forEach(stock => {
-    priceHistory[stock.symbol] = [];
-    buySellHistory[stock.symbol] = [];
-    portfolio[stock.symbol] = { shares: 0, totalCost: 0 };
-  });
-  generateInitialCandles();
-}
-function generateInitialCandles() {
-  stocks.forEach(stock => {
-    let base = stock.price;
-    for(let i=0; i<30; i++) {
-      let open = base + randomBetween(-2, 2);
-      let close = open + randomBetween(-3, 3);
-      let high = Math.max(open, close) + randomBetween(0, 2);
-      let low = Math.min(open, close) - randomBetween(0, 2);
-      priceHistory[stock.symbol].push({open, high, low, close});
-      base = close;
+  // HTML elements
+  const stockHeader = document.getElementById('stockHeader');
+  const cashDisplay = document.getElementById('cashDisplay');
+  const buyBtn = document.getElementById('buyBtn');
+  const sellBtn = document.getElementById('sellBtn');
+  const portfolioBody = document.getElementById('portfolioBody');
+  const totalPLEl = document.getElementById('totalPL');
+  const canvas = document.getElementById('chart');
+  const ctx = canvas.getContext('2d');
+
+  // Compute OHLC from close price array by assuming open = previous close,
+  // high = max(open, close) + small random spike, low = min(open, close) - small random dip
+  function computeOHLC(prices) {
+    const ohlc = [];
+    for(let i=1; i<prices.length; i++) {
+      const open = prices[i-1];
+      const close = prices[i];
+      const highBase = Math.max(open, close);
+      const lowBase = Math.min(open, close);
+      // Add some volatility wiggle for wick
+      const high = highBase + Math.random()*3;
+      const low = Math.max(1, lowBase - Math.random()*3);
+      ohlc.push({open, high, low, close});
     }
-  });
-}
-
-function randomBetween(min, max) {
-  return Math.random() * (max - min) + min;
-}
-
-function formatMoney(num) {
-  return num.toFixed(2);
-}
-
-// UI Elements
-const tabsDiv = document.getElementById("stock-tabs");
-const buyBtn = document.getElementById("buyBtn");
-const sellBtn = document.getElementById("sellBtn");
-const statusDiv = document.getElementById("status");
-const portfolioBody = document.getElementById("portfolioBody");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-
-function renderTabs() {
-  tabsDiv.innerHTML = "";
-  stocks.forEach((stock, i) => {
-    const tab = document.createElement("div");
-    tab.className = "tab" + (i === currentStockIndex ? " selected" : "");
-    tab.onclick = () => {
-      currentStockIndex = i;
-      renderTabs();
-      updateStatus();
-      drawChart();
-      updateButtons();
-    };
-    const img = document.createElement("img");
-    img.src = stock.logo;
-    img.alt = stock.symbol;
-    const text = document.createTextNode(stock.symbol);
-    tab.appendChild(img);
-    tab.appendChild(text);
-    tabsDiv.appendChild(tab);
-  });
-}
-
-function getCurrentPrice(symbol) {
-  const hist = priceHistory[symbol];
-  if (!hist.length) return 0;
-  return hist[hist.length-1].close;
-}
-
-function buyStock() {
-  const stock = stocks[currentStockIndex];
-  const price = getCurrentPrice(stock.symbol);
-  if (cash >= price) {
-    cash -= price;
-    portfolio[stock.symbol].shares++;
-    portfolio[stock.symbol].totalCost += price;
-    buySellHistory[stock.symbol].push({index: priceHistory[stock.symbol].length - 1, type: "buy", price});
-    updateStatus();
-    updatePortfolioTable();
-    updateButtons();
-    drawChart();
-  }
-}
-
-function sellStock() {
-  const stock = stocks[currentStockIndex];
-  if (portfolio[stock.symbol].shares > 0) {
-    const price = getCurrentPrice(stock.symbol);
-    cash += price;
-    portfolio[stock.symbol].shares--;
-    // Adjust total cost proportionally for simplicity (average cost)
-    let avgCost = portfolio[stock.symbol].totalCost / (portfolio[stock.symbol].shares + 1);
-    portfolio[stock.symbol].totalCost -= avgCost;
-    buySellHistory[stock.symbol].push({index: priceHistory[stock.symbol].length - 1, type: "sell", price});
-    updateStatus();
-    updatePortfolioTable();
-    updateButtons();
-    drawChart();
-  }
-}
-
-function updateStatus() {
-  const stock = stocks[currentStockIndex];
-  const shares = portfolio[stock.symbol].shares;
-  const price = getCurrentPrice(stock.symbol);
-  statusDiv.innerHTML = `
-    💰 Cash: $${formatMoney(cash)}<br/>
-    📈 ${stock.symbol} Shares Owned: ${shares}<br/>
-    📊 Current Price: $${formatMoney(price)}
-  `;
-}
-
-function updateButtons() {
-  const stock = stocks[currentStockIndex];
-  const price = getCurrentPrice(stock.symbol);
-  buyBtn.disabled = cash < price;
-  sellBtn.disabled = portfolio[stock.symbol].shares === 0;
-}
-
-// Portfolio Table
-function updatePortfolioTable() {
-  portfolioBody.innerHTML = "";
-  stocks.forEach(stock => {
-    const shares = portfolio[stock.symbol].shares;
-    if (shares === 0) return; // show only owned stocks
-    const avgCost = shares ? portfolio[stock.symbol].totalCost / shares : 0;
-    const currentValue = shares * getCurrentPrice(stock.symbol);
-    const profitLoss = currentValue - portfolio[stock.symbol].totalCost;
-
-    const tr = document.createElement("tr");
-
-    const tdSymbol = document.createElement("td");
-    tdSymbol.textContent = stock.symbol;
-    const tdShares = document.createElement("td");
-    tdShares.textContent = shares;
-    const tdCost = document.createElement("td");
-    tdCost.textContent = formatMoney(portfolio[stock.symbol].totalCost);
-    const tdValue = document.createElement("td");
-    tdValue.textContent = formatMoney(currentValue);
-    const tdPL = document.createElement("td");
-    tdPL.textContent = (profitLoss >= 0 ? "+" : "") + formatMoney(profitLoss);
-    tdPL.style.color = profitLoss >= 0 ? "lightgreen" : "#ff8080";
-
-    tr.appendChild(tdSymbol);
-    tr.appendChild(tdShares);
-    tr.appendChild(tdCost);
-    tr.appendChild(tdValue);
-    tr.appendChild(tdPL);
-
-    portfolioBody.appendChild(tr);
-  });
-}
-
-// Candle chart drawing
-function resizeCanvas() {
-  canvas.width = canvas.clientWidth * devicePixelRatio;
-  canvas.height = canvas.clientHeight * devicePixelRatio;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.scale(devicePixelRatio, devicePixelRatio);
-}
-window.addEventListener("resize", () => {
-  resizeCanvas();
-  drawChart();
-});
-resizeCanvas();
-
-function drawChart() {
-  ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-
-  const stock = stocks[currentStockIndex];
-  const hist = priceHistory[stock.symbol];
-  if (!hist.length) return;
-
-  const width = canvas.clientWidth;
-  const height = canvas.clientHeight;
-  const padding = 40;
-  const candleWidth = Math.min(12, (width - 2 * padding) / hist.length);
-  const chartHeight = height - 2 * padding;
-
-  let minPrice = Math.min(...hist.map(c => c.low));
-  let maxPrice = Math.max(...hist.map(c => c.high));
-  let pricePadding = (maxPrice - minPrice) * 0.1;
-  minPrice -= pricePadding;
-  maxPrice += pricePadding;
-
-  function priceToY(price) {
-    return padding + chartHeight * (1 - (price - minPrice) / (maxPrice - minPrice));
+    return ohlc;
   }
 
-  // Draw axis
-  ctx.strokeStyle = "rgba(255,255,255,0.3)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(padding, padding);
-  ctx.lineTo(padding, height - padding);
-  ctx.lineTo(width - padding, height - padding);
-  ctx.stroke();
+  function drawYAxis(minPrice, maxPrice, marginLeft, chartHeight) {
+    ctx.fillStyle = "#000";
+    ctx.font = "12px Arial";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    const steps = 6;
+    for(let i=0; i <= steps; i++) {
+      const y = 20 + (chartHeight / steps) * i;
+      const price = maxPrice - ((maxPrice - minPrice) / steps) * i;
+      ctx.fillText(`$${price.toFixed(2)}`, marginLeft - 10, y);
+      // horizontal grid line
+      ctx.strokeStyle = "#eee";
+      ctx.beginPath();
+      ctx.moveTo(marginLeft, y);
+      ctx.lineTo(canvas.width - 10, y);
+      ctx.stroke();
+    }
+  }
 
-  // Draw candles
-  hist.forEach((candle, i) => {
-    const x = padding + i * candleWidth + candleWidth / 2;
+  function drawCandlestickChart() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const prices = history[currentStock];
+    if (prices.length < 2) return;
 
-    const yOpen = priceToY(candle.open);
-    const yClose = priceToY(candle.close);
-    const yHigh = priceToY(candle.high);
-    const yLow = priceToY(candle.low);
+    const ohlc = computeOHLC(prices);
 
-    const isBull = candle.close >= candle.open;
-    ctx.strokeStyle = isBull ? "lime" : "red";
-    ctx.fillStyle = ctx.strokeStyle;
+    const marginLeft = 50;
+    const chartWidth = canvas.width - marginLeft - 20;
+    const chartHeight = canvas.height - 40;
+    drawYAxis(Math.min(...prices), Math.max(...prices), marginLeft, chartHeight);
 
-    // Wick
-    ctx.beginPath();
-    ctx.moveTo(x, yHigh);
-    ctx.lineTo(x, yLow);
-    ctx.stroke();
+    const candleWidth = Math.floor(chartWidth / ohlc.length * 0.7);
+    const spacing = chartWidth / ohlc.length;
 
-    // Body
-    const bodyTop = Math.min(yOpen, yClose);
-    const bodyHeight = Math.max(2, Math.abs(yClose - yOpen));
-    ctx.fillRect(x - candleWidth / 3, bodyTop, candleWidth / 1.5, bodyHeight);
-  });
+    for(let i=0; i < ohlc.length; i++) {
+      const c = ohlc[i];
+      const x = marginLeft + i*spacing + (spacing - candleWidth)/2;
+      // convert price to y
+      function yFromPrice(price) {
+        const minP = Math.min(...prices);
+        const maxP = Math.max(...prices);
+        return 20 + ((maxP - price) / (maxP - minP)) * chartHeight;
+      }
+      const yOpen = yFromPrice(c.open);
+      const yClose = yFromPrice(c.close);
+      const yHigh = yFromPrice(c.high);
+      const yLow = yFromPrice(c.low);
 
-  // Draw buy/sell markers
-  const markers = buySellHistory[stock.symbol];
-  markers.forEach(marker => {
-    const i = marker.index;
-    if (i < 0 || i >= hist.length) return;
-    const candle = hist[i];
-    const x = padding + i * candleWidth + candleWidth / 2;
-    const y = priceToY(candle.high) - 10;
+      // Candle color green if close>=open else red
+      const candleColor = (c.close >= c.open) ? "#008000" : "#d40000";
 
-    ctx.beginPath();
-    if (marker.type === "buy") {
-      ctx.fillStyle = "yellow";
-      ctx.moveTo(x, y);
-      ctx.lineTo(x - 6, y - 10);
-      ctx.lineTo(x + 6, y - 10);
+      // Draw wick
+      ctx.strokeStyle = candleColor;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + candleWidth/2, yHigh);
+      ctx.lineTo(x + candleWidth/2, yLow);
+      ctx.stroke();
+
+      // Draw candle body
+      ctx.fillStyle = candleColor;
+      ctx.fillRect(x, Math.min(yOpen, yClose), candleWidth, Math.abs(yClose - yOpen) || 1);
+      ctx.strokeRect(x, Math.min(yOpen, yClose), candleWidth, Math.abs(yClose - yOpen) || 1);
+    }
+
+    // Draw buy/sell arrows on respective candle positions
+    transactions.forEach(tx => {
+      if(tx.symbol !== currentStock) return;
+      const idx = tx.time - 1; // OHLC array is prices.length-1 long
+      if(idx < 0 || idx >= ohlc.length) return;
+      const c = ohlc[idx];
+      const x = marginLeft + idx*spacing + spacing/2;
+      const yClose = yFromPrice(c.close);
+
+      ctx.fillStyle = tx.type === 'buy' ? 'green' : 'red';
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      if(tx.type === 'buy') {
+        // Up arrow
+        ctx.moveTo(x, yClose - 15);
+        ctx.lineTo(x - 7, yClose - 3);
+        ctx.lineTo(x + 7, yClose - 3);
+      } else {
+        // Down arrow
+        ctx.moveTo(x, yClose + 15);
+        ctx.lineTo(x - 7, yClose + 3);
+        ctx.lineTo(x + 7, yClose + 3);
+      }
       ctx.closePath();
       ctx.fill();
-    } else if (marker.type === "sell") {
-      ctx.fillStyle = "orange";
-      ctx.moveTo(x, y);
-      ctx.lineTo(x - 6, y + 10);
-      ctx.lineTo(x + 6, y + 10);
-      ctx.closePath();
-      ctx.fill();
+      ctx.stroke();
+    });
+
+    // Helper function inside so no scope issues
+    function yFromPrice(price) {
+      const minP = Math.min(...prices);
+      const maxP = Math.max(...prices);
+      return 20 + ((maxP - price) / (maxP - minP)) * chartHeight;
     }
-  });
-}
+  }
 
-// Simulate new candles every 5 seconds
-function simulateNewCandle() {
-  stocks.forEach(stock => {
-    const hist = priceHistory[stock.symbol];
-    const lastCandle = hist[hist.length - 1];
-    let open = lastCandle.close;
-    let close = open + randomBetween(-3, 3);
-    let high = Math.max(open, close) + randomBetween(0, 2);
-    let low = Math.min(open, close) - randomBetween(0, 2);
-    hist.push({open, high, low, close});
-    if(hist.length > 50) hist.shift();
-  });
-  renderTabs();
-  drawChart();
-  updateStatus();
-  updateButtons();
-  updatePortfolioTable();
-}
+  function updateHeader() {
+    stockHeader.innerHTML = '';
+    for (const s in stocks) {
+      const div = document.createElement('div');
+      div.className = 'stock-select' + (s === currentStock ? ' selected' : '');
+      div.innerHTML = `<img src="${stocks[s].logo}" alt="${s} logo"/>${s} $${stocks[s].price.toFixed(2)}`;
+      div.onclick = () => {
+        currentStock = s;
+        updateAll();
+      };
+      stockHeader.appendChild(div);
+    }
+  }
 
-// Passive earnings every 3 seconds
-function passiveEarnings() {
-  cash += 1;
-  updateStatus();
-  updateButtons();
-  updatePortfolioTable();
-}
+  function updatePortfolio() {
+    portfolioBody.innerHTML = '';
+    let totalPL = 0;
+    for (const p of portfolio) {
+      const currentPrice = stocks[p.symbol].price;
+      const pl = currentPrice - p.price;
+      const plPct = (pl / p.price) * 100;
+      totalPL += pl;
 
-buyBtn.addEventListener("click", buyStock);
-sellBtn.addEventListener("click", sellStock);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${p.symbol}</td>
+        <td>$${p.price.toFixed(2)}</td>
+        <td>$${currentPrice.toFixed(2)}</td>
+        <td class="${pl>=0?'profit':'loss'}">$${pl.toFixed(2)}</td>
+        <td class="${pl>=0?'profit':'loss'}">${plPct.toFixed(2)}%</td>
+      `;
+      portfolioBody.appendChild(tr);
+    }
+    totalPLEl.textContent = totalPL.toFixed(2);
+  }
 
-init();
-renderTabs();
-updateStatus();
-updateButtons();
-updatePortfolioTable();
-drawChart();
+  function updateButtons() {
+    buyBtn.disabled = cash < stocks[currentStock].price;
+    sellBtn.disabled = !portfolio.find(p => p.symbol === currentStock);
+  }
 
-setInterval(simulateNewCandle, 5000);
-setInterval(passiveEarnings, 3000);
+  buyBtn.onclick = () => {
+    const price = stocks[currentStock].price;
+    if (cash >= price) {
+      portfolio.push({ symbol: currentStock, price });
+      transactions.push({ symbol: currentStock, price, type: 'buy', time: history[currentStock].length });
+      cash -= price;
+      updateAll();
+    }
+  };
+
+  sellBtn.onclick = () => {
+    const idx = portfolio.findIndex(p => p.symbol === currentStock);
+    if (idx >= 0) {
+      const currentPrice = stocks[currentStock].price;
+      transactions.push({ symbol: currentStock, price: currentPrice, type: 'sell', time: history[currentStock].length });
+      portfolio.splice(idx, 1);
+      cash += currentPrice;
+      updateAll();
+    }
+  };
+
+  // Passive earnings $1 every 3 sec
+  setInterval(() => {
+    cash += 1;
+    cashDisplay.textContent = cash.toFixed(2);
+    updateButtons();
+  }, 3000);
+
+  // Simulate price changes every 2 sec
+  setInterval(() => {
+    for (const s in stocks) {
+      const delta = (Math.random() - 0.5) * 4;
+      stocks[s].price += delta;
+      if (stocks[s].price < 1) stocks[s].price = 1;
+      history[s].push(stocks[s].price);
+      if (history[s].length > 50) history[s].shift();
+    }
+    updateAll();
+  }, 2000);
+
+  function updateAll() {
+    cashDisplay.textContent = cash.toFixed(2);
+    updateHeader();
+    updateButtons();
+    updatePortfolio();
+    drawCandlestickChart();
+  }
+
+  updateAll();
+})();
 </script>
-
 </body>
 </html>
