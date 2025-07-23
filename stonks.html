@@ -1,372 +1,273 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Stonks Simulator™ Candlestick Chart</title>
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    background:#f0f2f5;
-    margin:0; padding:0;
-    color:#333;
-  }
-  header {
-    background: rgba(0,123,191,1);
-    display:flex;
-    flex-wrap:wrap;
-    justify-content:center;
-    padding:10px;
-  }
-  .stock-select {
-    cursor:pointer;
-    margin: 5px 10px;
-    color:white;
-    font-weight:bold;
-    display:flex;
-    align-items:center;
-    user-select:none;
-  }
-  .stock-select img {
-    height: 28px;
-    margin-right: 8px;
-  }
-  .stock-select.selected {
-    text-decoration: underline;
-  }
-  .container {
-    max-width:900px;
-    margin: 20px auto;
-    background:white;
-    padding:15px;
-    border-radius:8px;
-    box-shadow:0 0 8px rgba(0,0,0,0.1);
-  }
-  #chartContainer {
-    position: relative;
-    height: 320px;
-    border:1px solid #ccc;
-    border-radius:6px;
-    background:#fff;
-  }
-  canvas {
-    display: block;
-    margin: 0 auto;
-  }
-  .controls {
-    margin-top: 15px;
-    text-align: center;
-  }
-  button {
-    font-weight: bold;
-    padding: 10px 20px;
-    margin: 0 10px;
-    cursor: pointer;
-  }
-  button:disabled {
-    background: #ccc;
-    cursor: default;
-  }
-  .info {
-    margin-top: 10px;
-    text-align:center;
-    font-size:1.1em;
-  }
-  table {
-    width: 100%;
-    margin-top: 20px;
-    border-collapse: collapse;
-    text-align: center;
-  }
-  th, td {
-    border-bottom: 1px solid #ddd;
-    padding: 8px;
-  }
-  th {
-    background: #eee;
-  }
-  .profit {
-    color: green;
-  }
-  .loss {
-    color: red;
-  }
-  .summary {
-    margin-top: 10px;
-    font-weight: bold;
-    font-size: 1.2em;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stonks Simulator™</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f8fb;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: rgba(0,123,191,1);
+      color: white;
+      padding: 1em;
+      text-align: center;
+      font-size: 1.6em;
+      font-weight: bold;
+    }
+    .stock-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin: 1em auto;
+      gap: 10px;
+      max-width: 900px;
+    }
+    .stock-button {
+      background: white;
+      border: 2px solid #007bbf;
+      padding: 0.5em 1em;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .stock-button:hover {
+      background: #e9f5ff;
+    }
+    .stock-logo {
+      width: 24px;
+      height: 24px;
+    }
+    #chart {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .actions, .portfolio, .news {
+      max-width: 900px;
+      margin: 1em auto;
+      padding: 1em;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .portfolio-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5em 0;
+      border-bottom: 1px solid #eee;
+    }
+    .gain { color: green; }
+    .loss { color: red; }
+    .price-label {
+      font-weight: bold;
+      margin-left: 5px;
+    }
+    button {
+      padding: 0.5em 1em;
+      border: none;
+      border-radius: 8px;
+      margin-right: 0.5em;
+      background: #007bbf;
+      color: white;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    @media (max-width: 600px) {
+      .stock-buttons {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+  </style>
 </head>
 <body>
-
-<header id="stockHeader"></header>
-<div class="container">
-  <div class="info">
-    Cash: $<span id="cashDisplay">1000.00</span> | Earnings: +$1 every 3 seconds
+  <header>📈 Stonks Simulator™</header>
+  <div class="stock-buttons" id="stockButtons"></div>
+  <div id="chart"></div>
+  <div class="actions">
+    <div>💵 Balance: <span id="balance">$1000.00</span></div>
+    <div style="margin-top: 10px;">
+      <button id="buyBtn">Buy</button>
+      <button id="sellBtn">Sell</button>
+    </div>
   </div>
-  <div id="chartContainer">
-    <canvas id="chart" width="860" height="320"></canvas>
+  <div class="portfolio" id="portfolio">
+    <h3>📊 Portfolio</h3>
+    <div id="portfolioList"></div>
   </div>
-  <div class="controls">
-    <button id="buyBtn">Buy</button>
-    <button id="sellBtn">Sell</button>
+  <div class="news" id="news">
+    <h3>📰 Latest News</h3>
+    <div id="latestNews">Loading...</div>
   </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Stock</th><th>Buy Price</th><th>Current Price</th><th>P/L ($)</th><th>P/L (%)</th>
-      </tr>
-    </thead>
-    <tbody id="portfolioBody"></tbody>
-  </table>
-  <div class="summary">
-    Total P/L: $<span id="totalPL">0.00</span>
-  </div>
-</div>
 
-<script>
-(() => {
-  // Stocks & logos
-  const stocks = {
-    META: { logo: 'https://logo.clearbit.com/meta.com', price: 500 },
-    AMZN: { logo: 'https://logo.clearbit.com/amazon.com', price: 185 },
-    AAPL: { logo: 'https://logo.clearbit.com/apple.com', price: 233 },
-    MSFT: { logo: 'https://logo.clearbit.com/microsoft.com', price: 430 },
-    GOOGL: { logo: 'https://logo.clearbit.com/abc.xyz', price: 190 }
-  };
+  <script>
+    const stocks = {
+      META: { name: "Meta", price: 300, logo: "https://logo.clearbit.com/meta.com", newsApi: 'https://news.google.com/rss/search?q=Meta+stock' },
+      AAPL: { name: "Apple", price: 190, logo: "https://logo.clearbit.com/apple.com", newsApi: 'https://news.google.com/rss/search?q=Apple+stock' },
+      AMZN: { name: "Amazon", price: 130, logo: "https://logo.clearbit.com/amazon.com", newsApi: 'https://news.google.com/rss/search?q=Amazon+stock' },
+      MSFT: { name: "Microsoft", price: 310, logo: "https://logo.clearbit.com/microsoft.com", newsApi: 'https://news.google.com/rss/search?q=Microsoft+stock' },
+      GOOG: { name: "Alphabet", price: 140, logo: "https://logo.clearbit.com/google.com", newsApi: 'https://news.google.com/rss/search?q=Google+stock' }
+    };
 
-  let currentStock = 'META';
-  let cash = 1000;
-  let portfolio = [];
-  let transactions = [];
-  const history = {};
+    let currentStock = 'META';
+    let balance = 1000;
+    let holdings = {};
+    let chartData = {};
 
-  // Initialize history with starting price array (simulate OHLC with close only)
-  for (const s in stocks) {
-    history[s] = [stocks[s].price];
-  }
-
-  // HTML elements
-  const stockHeader = document.getElementById('stockHeader');
-  const cashDisplay = document.getElementById('cashDisplay');
-  const buyBtn = document.getElementById('buyBtn');
-  const sellBtn = document.getElementById('sellBtn');
-  const portfolioBody = document.getElementById('portfolioBody');
-  const totalPLEl = document.getElementById('totalPL');
-  const canvas = document.getElementById('chart');
-  const ctx = canvas.getContext('2d');
-
-  // Compute OHLC from close price array by assuming open = previous close,
-  // high = max(open, close) + small random spike, low = min(open, close) - small random dip
-  function computeOHLC(prices) {
-    const ohlc = [];
-    for(let i=1; i<prices.length; i++) {
-      const open = prices[i-1];
-      const close = prices[i];
-      const highBase = Math.max(open, close);
-      const lowBase = Math.min(open, close);
-      // Add some volatility wiggle for wick
-      const high = highBase + Math.random()*3;
-      const low = Math.max(1, lowBase - Math.random()*3);
-      ohlc.push({open, high, low, close});
-    }
-    return ohlc;
-  }
-
-  function drawYAxis(minPrice, maxPrice, marginLeft, chartHeight) {
-    ctx.fillStyle = "#000";
-    ctx.font = "12px Arial";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    const steps = 6;
-    for(let i=0; i <= steps; i++) {
-      const y = 20 + (chartHeight / steps) * i;
-      const price = maxPrice - ((maxPrice - minPrice) / steps) * i;
-      ctx.fillText(`$${price.toFixed(2)}`, marginLeft - 10, y);
-      // horizontal grid line
-      ctx.strokeStyle = "#eee";
-      ctx.beginPath();
-      ctx.moveTo(marginLeft, y);
-      ctx.lineTo(canvas.width - 10, y);
-      ctx.stroke();
-    }
-  }
-
-  function drawCandlestickChart() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const prices = history[currentStock];
-    if (prices.length < 2) return;
-
-    const ohlc = computeOHLC(prices);
-
-    const marginLeft = 50;
-    const chartWidth = canvas.width - marginLeft - 20;
-    const chartHeight = canvas.height - 40;
-    drawYAxis(Math.min(...prices), Math.max(...prices), marginLeft, chartHeight);
-
-    const candleWidth = Math.floor(chartWidth / ohlc.length * 0.7);
-    const spacing = chartWidth / ohlc.length;
-
-    for(let i=0; i < ohlc.length; i++) {
-      const c = ohlc[i];
-      const x = marginLeft + i*spacing + (spacing - candleWidth)/2;
-      // convert price to y
-      function yFromPrice(price) {
-        const minP = Math.min(...prices);
-        const maxP = Math.max(...prices);
-        return 20 + ((maxP - price) / (maxP - minP)) * chartHeight;
+    function updateButtons() {
+      const container = document.getElementById('stockButtons');
+      container.innerHTML = '';
+      for (const [symbol, { name, logo, price }] of Object.entries(stocks)) {
+        const div = document.createElement('div');
+        div.className = 'stock-button';
+        div.onclick = () => selectStock(symbol);
+        div.innerHTML = `<img class="stock-logo" src="${logo}" alt="${name}"> ${symbol} <span class="price-label">$${price.toFixed(2)}</span>`;
+        container.appendChild(div);
       }
-      const yOpen = yFromPrice(c.open);
-      const yClose = yFromPrice(c.close);
-      const yHigh = yFromPrice(c.high);
-      const yLow = yFromPrice(c.low);
-
-      // Candle color green if close>=open else red
-      const candleColor = (c.close >= c.open) ? "#008000" : "#d40000";
-
-      // Draw wick
-      ctx.strokeStyle = candleColor;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x + candleWidth/2, yHigh);
-      ctx.lineTo(x + candleWidth/2, yLow);
-      ctx.stroke();
-
-      // Draw candle body
-      ctx.fillStyle = candleColor;
-      ctx.fillRect(x, Math.min(yOpen, yClose), candleWidth, Math.abs(yClose - yOpen) || 1);
-      ctx.strokeRect(x, Math.min(yOpen, yClose), candleWidth, Math.abs(yClose - yOpen) || 1);
     }
 
-    // Draw buy/sell arrows on respective candle positions
-    transactions.forEach(tx => {
-      if(tx.symbol !== currentStock) return;
-      const idx = tx.time - 1; // OHLC array is prices.length-1 long
-      if(idx < 0 || idx >= ohlc.length) return;
-      const c = ohlc[idx];
-      const x = marginLeft + idx*spacing + spacing/2;
-      const yClose = yFromPrice(c.close);
-
-      ctx.fillStyle = tx.type === 'buy' ? 'green' : 'red';
-      ctx.strokeStyle = 'black';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      if(tx.type === 'buy') {
-        // Up arrow
-        ctx.moveTo(x, yClose - 15);
-        ctx.lineTo(x - 7, yClose - 3);
-        ctx.lineTo(x + 7, yClose - 3);
-      } else {
-        // Down arrow
-        ctx.moveTo(x, yClose + 15);
-        ctx.lineTo(x - 7, yClose + 3);
-        ctx.lineTo(x + 7, yClose + 3);
-      }
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    });
-
-    // Helper function inside so no scope issues
-    function yFromPrice(price) {
-      const minP = Math.min(...prices);
-      const maxP = Math.max(...prices);
-      return 20 + ((maxP - price) / (maxP - minP)) * chartHeight;
+    function selectStock(symbol) {
+      currentStock = symbol;
+      drawChart();
+      updateButtons();
+      updatePortfolio();
+      updateNews();
     }
-  }
 
-  function updateHeader() {
-    stockHeader.innerHTML = '';
-    for (const s in stocks) {
-      const div = document.createElement('div');
-      div.className = 'stock-select' + (s === currentStock ? ' selected' : '');
-      div.innerHTML = `<img src="${stocks[s].logo}" alt="${s} logo"/>${s} $${stocks[s].price.toFixed(2)}`;
-      div.onclick = () => {
-        currentStock = s;
-        updateAll();
+    function drawChart() {
+      const data = chartData[currentStock] || [];
+      const trace = {
+        x: data.map(d => d.time),
+        open: data.map(d => d.open),
+        high: data.map(d => d.high),
+        low: data.map(d => d.low),
+        close: data.map(d => d.close),
+        type: 'candlestick',
+        increasing: { line: { color: 'green' } },
+        decreasing: { line: { color: 'red' } },
       };
-      stockHeader.appendChild(div);
+
+      const lastUpdate = data.length ? data[data.length - 1].time : 'N/A';
+
+      Plotly.newPlot('chart', [trace], {
+        title: `${currentStock} Price Chart (Simulated • ${lastUpdate})`,
+        xaxis: {
+          title: 'Time',
+          type: 'category',
+          tickangle: -45,
+          nticks: 10
+        },
+        yaxis: {
+          title: 'Price (USD)',
+          tickprefix: '$',
+          tickformat: '.2f'
+        },
+        margin: { t: 40 }
+      }, { responsive: true });
     }
-  }
 
-  function updatePortfolio() {
-    portfolioBody.innerHTML = '';
-    let totalPL = 0;
-    for (const p of portfolio) {
-      const currentPrice = stocks[p.symbol].price;
-      const pl = currentPrice - p.price;
-      const plPct = (pl / p.price) * 100;
-      totalPL += pl;
+    function updatePrices() {
+      for (const symbol in stocks) {
+        const stock = stocks[symbol];
+        const prev = stock.price;
+        const delta = (Math.random() - 0.5) * 4;
+        stock.price = +(prev + delta).toFixed(2);
 
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${p.symbol}</td>
-        <td>$${p.price.toFixed(2)}</td>
-        <td>$${currentPrice.toFixed(2)}</td>
-        <td class="${pl>=0?'profit':'loss'}">$${pl.toFixed(2)}</td>
-        <td class="${pl>=0?'profit':'loss'}">${plPct.toFixed(2)}%</td>
-      `;
-      portfolioBody.appendChild(tr);
+        const now = new Date();
+        const time = now.toLocaleTimeString();
+        const open = prev;
+        const close = stock.price;
+        const spread = Math.max(0.5, Math.abs(delta));
+        const high = Math.max(open, close) + spread;
+        const low = Math.min(open, close) - spread;
+
+        if (!chartData[symbol]) chartData[symbol] = [];
+        chartData[symbol].push({
+          open,
+          high: +high.toFixed(2),
+          low: +low.toFixed(2),
+          close,
+          time
+        });
+
+        if (chartData[symbol].length > 50) chartData[symbol].shift();
+      }
+      updateButtons();
+      drawChart();
     }
-    totalPLEl.textContent = totalPL.toFixed(2);
-  }
 
-  function updateButtons() {
-    buyBtn.disabled = cash < stocks[currentStock].price;
-    sellBtn.disabled = !portfolio.find(p => p.symbol === currentStock);
-  }
-
-  buyBtn.onclick = () => {
-    const price = stocks[currentStock].price;
-    if (cash >= price) {
-      portfolio.push({ symbol: currentStock, price });
-      transactions.push({ symbol: currentStock, price, type: 'buy', time: history[currentStock].length });
-      cash -= price;
-      updateAll();
+    function updatePortfolio() {
+      const container = document.getElementById('portfolioList');
+      container.innerHTML = '';
+      let totalValue = 0;
+      for (const symbol in holdings) {
+        const { shares, price: buyPrice } = holdings[symbol];
+        const currentPrice = stocks[symbol].price;
+        const gain = (currentPrice - buyPrice) * shares;
+        totalValue += currentPrice * shares;
+        const div = document.createElement('div');
+        div.className = 'portfolio-item';
+        div.innerHTML = `${symbol} - ${shares} shares @ $${buyPrice.toFixed(2)} <span class="${gain >= 0 ? 'gain' : 'loss'}">${gain >= 0 ? '+' : ''}$${gain.toFixed(2)} (${((gain / (buyPrice * shares)) * 100).toFixed(1)}%)</span>`;
+        container.appendChild(div);
+      }
+      document.getElementById('balance').textContent = `$${(balance + totalValue).toFixed(2)}`;
     }
-  };
 
-  sellBtn.onclick = () => {
-    const idx = portfolio.findIndex(p => p.symbol === currentStock);
-    if (idx >= 0) {
-      const currentPrice = stocks[currentStock].price;
-      transactions.push({ symbol: currentStock, price: currentPrice, type: 'sell', time: history[currentStock].length });
-      portfolio.splice(idx, 1);
-      cash += currentPrice;
-      updateAll();
+    async function updateNews() {
+      const container = document.getElementById('latestNews');
+      try {
+        const proxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(stocks[currentStock].newsApi);
+        const response = await fetch(proxy);
+        const data = await response.json();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(data.contents, "application/xml");
+        const item = doc.querySelector("item");
+        const title = item.querySelector("title").textContent;
+        const link = item.querySelector("link").textContent;
+        container.innerHTML = `🕒 <a href="${link}" target="_blank">${title}</a>`;
+      } catch (e) {
+        container.innerHTML = '(Failed to load news)';
+      }
     }
-  };
 
-  // Passive earnings $1 every 3 sec
-  setInterval(() => {
-    cash += 1;
-    cashDisplay.textContent = cash.toFixed(2);
+    document.getElementById('buyBtn').onclick = () => {
+      const price = stocks[currentStock].price;
+      if (balance >= price) {
+        balance -= price;
+        if (!holdings[currentStock]) holdings[currentStock] = { shares: 0, price };
+        const h = holdings[currentStock];
+        h.shares += 1;
+        h.price = ((h.price * (h.shares - 1)) + price) / h.shares;
+        updatePortfolio();
+      }
+    };
+
+    document.getElementById('sellBtn').onclick = () => {
+      const h = holdings[currentStock];
+      if (h && h.shares > 0) {
+        balance += stocks[currentStock].price;
+        h.shares -= 1;
+        if (h.shares === 0) delete holdings[currentStock];
+        updatePortfolio();
+      }
+    };
+
     updateButtons();
-  }, 3000);
-
-  // Simulate price changes every 2 sec
-  setInterval(() => {
-    for (const s in stocks) {
-      const delta = (Math.random() - 0.5) * 4;
-      stocks[s].price += delta;
-      if (stocks[s].price < 1) stocks[s].price = 1;
-      history[s].push(stocks[s].price);
-      if (history[s].length > 50) history[s].shift();
-    }
-    updateAll();
-  }, 2000);
-
-  function updateAll() {
-    cashDisplay.textContent = cash.toFixed(2);
-    updateHeader();
-    updateButtons();
+    selectStock('META');
+    updatePrices();
     updatePortfolio();
-    drawCandlestickChart();
-  }
-
-  updateAll();
-})();
-</script>
+    setInterval(updatePrices, 3000);
+  </script>
 </body>
 </html>
