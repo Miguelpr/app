@@ -1,0 +1,234 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amiggy Apps & Games - Discover Our Software Portfolio</title>
+    <meta name="description" content="Explore Amiggy's exciting range of software, including immersive games like the Strategic War Game, Drone Simulator, Stonks Simulator™, European Roulette, and more. Find engaging and high-quality applications.">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="/static/css/amiggy-styles.css"> 
+    <style>
+        /* Basic responsive styles - Amiggy's actual CSS should override/enhance these */
+        body {
+            font-family: Arial, sans-serif; /* Default, will be overridden by Montserrat where specified */
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Styles for the simplified header with precise values */
+        header {
+            background-color: rgba(0,123,191,1); /* Exact background color as specified */
+            padding: 1.2rem 30px; 
+            text-align: left; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center; 
+        }
+        header .logo-link {
+            color: #fff;
+            text-decoration: none;
+            font-family: 'Montserrat', sans-serif; /* Applied Montserrat font */
+            font-weight: 400; /* Applied font-weight 400 */
+            font-size: 15pt; /* Applied font-size 15pt */
+            transition: color 0.3s ease;
+            line-height: 1; 
+        }
+        header .logo-link:hover {
+            color: #d1e5f8; 
+        }
+
+        /* Styles for the introductory section (moved from header) */
+        .intro-section {
+            background-color: #fff;
+            padding: 40px 20px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 30px;
+        }
+        .intro-section h1 {
+            margin-top: 0;
+            font-size: 2.8em; 
+            color: #34495e;
+        }
+        .intro-section p {
+            font-size: 1.2em;
+            color: #7f8c8d;
+            max-width: 800px;
+            margin: 10px auto 0;
+        }
+
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            padding: 30px 0;
+        }
+        .game-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            padding: 25px;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .game-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+        }
+        .game-card h2 {
+            color: #3498db;
+            margin-top: 0;
+            font-size: 1.8em;
+        }
+        .game-card p {
+            font-size: 1em;
+            color: #555;
+            flex-grow: 1; 
+            margin-bottom: 20px;
+        }
+        .game-card .cta-button {
+            display: inline-block;
+            background-color: #3498db;
+            color: #fff;
+            padding: 12px 25px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        .game-card .cta-button:hover {
+            background-color: #2980b9;
+        }
+        footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 30px;
+            background-color: #2c3e50;
+            color: #fff;
+        }
+
+        /* Specific styles for "Android Apps and Games" header text */
+        .game-card.android-apps-games h2 {
+            font-size: 1.8em; 
+        }
+
+        /* Media Queries for enhanced responsiveness */
+        @media (max-width: 768px) {
+            header .logo-link {
+                font-size: 1.5em; /* Adjusted for smaller screens, 15pt might be too large */
+            }
+            header {
+                padding: 1rem 20px; 
+            }
+            .intro-section h1 {
+                font-size: 2.2em;
+            }
+            .intro-section p {
+                font-size: 1em;
+            }
+            .game-grid {
+                grid-template-columns: 1fr; 
+            }
+            .game-card {
+                padding: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+            header .logo-link {
+                font-size: 1.2em; /* Further adjusted for very small screens */
+            }
+            header {
+                padding: 0.8rem 15px; 
+            }
+            .intro-section h1 {
+                font-size: 1.8em;
+            }
+            .intro-section p {
+                font-size: 0.9em;
+            }
+            .game-card h2 {
+                font-size: 1.5em;
+            }
+            .game-card p {
+                font-size: 0.9em;
+            }
+            .game-card .cta-button {
+                padding: 10px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="https://amiggy.com" class="logo-link">Amiggy</a>
+    </header>
+
+    <main>
+        <section class="intro-section">
+            <div class="container">
+                <h1>Amiggy Apps & Games</h1>
+                <p>Your destination for engaging software experiences.</p>
+            </div>
+        </section>
+
+        <section class="game-grid container">
+            <article class="game-card android-apps-games">
+                <h2>Android Apps and Games</h2>
+                <p>Building apps for Android is a good way to practice and discover the potential of your smartphone. Our collection gives you an idea that the potential was always there ready to use.</p>
+                <a href="https://play.google.com/store/apps/developer?id=Amiggy" class="cta-button">Learn More</a> 
+            </article>
+
+            <article class="game-card">
+                <h2>Amiggy's Drone Game</h2>
+                <p>Soar through virtual skies with Amiggy's cutting-edge Drone Game software. Experience the thrill of piloting a drone with realistic flight physics and intuitive controls, designed for both aspiring and experienced virtual pilots. Our software offers diverse environments, challenging missions, and a selection of customizable drones, providing an engaging and immersive simulation experience. Hone your piloting skills, explore breathtaking landscapes, and master aerial maneuvers with Amiggy's high-quality drone game.</p>
+                <a href="https://app.amiggy.com/drone.html" class="cta-button">Play Now</a>
+            </article>
+
+            <article class="game-card">
+                <h2>Guess the Number</h2>
+                <p>Test your intuition! Play "Guess the Number," a classic game where you try to pinpoint the secret number. This version features a fun Python client/server setup, perfect for quick guesses and challenging your friends. Can you guess it in the fewest tries?</p>
+                <a href="http://app.amiggy.com:5000" class="cta-button">Play Now</a>
+            </article>
+
+            <article class="game-card">
+                <h2>Stonks Simulator™ – The Ultimate FAAMG Market Game</h2>
+                <p>Buy low, sell high, and dominate the market! Stonks Simulator™ is a fast-paced stock market simulation game where you trade real FAAMG companies (Meta, Apple, Amazon, Microsoft, and Google) using virtual money. Watch price charts, time your buys and sells, grow your portfolio, and earn passive income. Climb the local leaderboard, refer friends for bonuses, and see if you can become the top virtual investor!</p>
+                <a href="https://app.amiggy.com/stonks.html" class="cta-button">Play Now</a>
+            </article>
+
+            <article class="game-card">
+                <h2>European Roulette Game</h2>
+                <p>Dive into the classic excitement of Roulette with Amiggy's premium online software. Our digital roulette game brings the suspense and strategy of the casino floor directly to your screen. Enjoy realistic gameplay, a user-friendly interface, and a wide range of betting options, all powered by reliable Random Number Generation (RNG) for fair and unpredictable outcomes. Compatible across various devices, Amiggy's Roulette offers an immersive and authentic gaming experience for both new players and seasoned enthusiasts.</p>
+                <a href="https://app.amiggy.com/roulette.html" class="cta-button">Play Now</a>
+            </article>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Amiggy. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>
