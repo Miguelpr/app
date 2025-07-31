@@ -1,87 +1,110 @@
-
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!-- saved from url=(0033)https://app.amiggy.com/drone.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Strategic War Game v6</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+  <script src="./Strategic War Game v6_files/p5.min.js.download"></script>
+  <link href="./Strategic War Game v6_files/css2" rel="stylesheet">
   <style>
+    * {
+      box-sizing: border-box;
+    }
     html, body {
       margin: 0;
       padding: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: #222;
-      color: white;
+      width: 100vw;
+      height: 100vh;
+      background: #111;
+      color: #fff;
       font-family: 'Orbitron', Arial, sans-serif;
       overflow: hidden;
     }
     canvas {
-      border: 2px solid #444;
-      width: 100%;
-      height: 100%;
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
+      border: 2px solid #555;
+      width: 100vw;
+      height: 100vh;
+      display: block;
       touch-action: none;
+      background: linear-gradient(180deg, #1a1a1a, #2a2a2a);
     }
     #status-overlay {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 10px;
-      border-radius: 5px;
-      font-size: 14px;
+      top: 15px;
+      left: 15px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 16px;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+      border: 1px solid #444;
+      max-width: calc(100vw - 30px);
+      max-height: calc(100vh - 30px);
     }
     #action-indicator {
       position: absolute;
-      bottom: 10px;
+      bottom: 15px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.7);
-      padding: 5px 10px;
-      border-radius: 5px;
-      font-size: 16px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 8px 15px;
+      border-radius: 8px;
+      font-size: 18px;
+      color: #ffd700;
+      box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+      max-width: calc(100vw - 30px);
+    }
+    #error-message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: red;
+      font-size: 18px;
+      text-align: center;
+      display: none;
+      max-width: calc(100vw - 30px);
     }
     @media (max-width: 600px) {
       #status-overlay {
         font-size: 12px;
-        padding: 5px;
+        padding: 8px;
+        top: 10px;
+        left: 10px;
       }
       #action-indicator {
         font-size: 14px;
-        padding: 5px 8px;
+        padding: 6px 10px;
+        bottom: 10px;
+      }
+      #error-message {
+        font-size: 14px;
       }
     }
   </style>
 </head>
 <body>
   <div id="status-overlay">
-    <p>Gold: <span id="gold">100</span> | Enemy Gold: <span id="enemyGold">100</span> | Area: <span id="area">0%</span> | Status: <span id="status">Playing</span></p>
+    <p>Gold: <span id="gold">2413</span> | Enemy Gold: <span id="enemyGold">789</span> | Area: <span id="area">47.6%</span> | Status: <span id="status">Playing</span></p>
     <p>Drones: <span id="playerDrones">0</span> | Turrets: <span id="playerTurrets">0</span> | Destroyed: You <span id="playerUnitsDestroyed">0</span>, Enemy <span id="enemyUnitsDestroyed">0</span></p>
   </div>
   <div id="action-indicator"></div>
+  <div id="error-message"></div>
   <script>
 let grid = [];
 let terrain = [];
-let gridSize = 40;
-let cellSize;
+let gridCols, gridRows;
+let cellWidth, cellHeight;
+let totalCells;
 let playerUnits = [];
 let enemyUnits = [];
 let gold = 100;
 let enemyGold = 100;
 let controlledCells = 0;
-const totalCells = 1600;
 let gameStatus = 'Playing';
 let gameHistory = [];
-let enemyDroneHealth = 75; // Increased from 70 to make enemy drones more resilient
-let enemySpawnProbs = { drone: 0.6, turret: 0.4 }; // Adjusted to favor turrets more
+let enemyDroneHealth = 75;
+let enemySpawnProbs = { drone: 0.6, turret: 0.4 };
 let spawnFlash = null;
 let shotEffects = [];
 let missileEffects = [];
@@ -93,53 +116,81 @@ let lastDebugLog = 0;
 let inputActive = false;
 let inputStartTime = null;
 let inputX, inputY;
-let playerGradient, enemyGradient;
+let playerGradient, enemyGradient, rockGradient, treeGradient;
 let terrainCache = [];
 let lastUnitPositions = [];
+let isVerticalSplit = false;
 
 function setup() {
   try {
-    // Set canvas to exact window dimensions for full-screen coverage
-    let canvasWidth = window.innerWidth;
-    let canvasHeight = window.innerHeight;
-    let canvas = createCanvas(canvasWidth, canvasHeight);
+    let canvas = createCanvas(window.innerWidth, window.innerHeight);
+    canvas.parent(document.body);
     canvas.style('display', 'block');
-    cellSize = min(canvasWidth, canvasHeight) / gridSize; // Use min to ensure grid fits
-    playerGradient = drawingContext.createLinearGradient(0, 0, cellSize, cellSize);
-    playerGradient.addColorStop(0, 'rgba(255, 255, 0, 0.1)');
-    playerGradient.addColorStop(1, 'rgba(200, 200, 0, 0.2)');
-    enemyGradient = drawingContext.createLinearGradient(0, 0, cellSize, cellSize);
-    enemyGradient.addColorStop(0, 'rgba(255, 0, 0, 0.1)');
-    enemyGradient.addColorStop(1, 'rgba(200, 0, 0, 0.2)');
-    console.log(`p5.js canvas initialized: ${canvasWidth}x${canvasHeight}, cellSize=${cellSize}`);
+    pixelDensity(1);
+    background(30);
+    // Calculate grid dimensions based on screen aspect ratio
+    let aspectRatio = window.innerWidth / window.innerHeight;
+    isVerticalSplit = aspectRatio > 1; // Vertical split for wide screens, horizontal for tall/square
+    // Aim for ~1024 cells, prefer even dimensions for clean split
+    if (isVerticalSplit) {
+      gridCols = Math.round(Math.sqrt(1024 * aspectRatio / 2)) * 2; // Even columns for vertical split
+      gridRows = Math.round(1024 / gridCols);
+    } else {
+      gridRows = Math.round(Math.sqrt(1024 / aspectRatio / 2)) * 2; // Even rows for horizontal split
+      gridCols = Math.round(1024 / gridRows);
+    }
+    totalCells = gridCols * gridRows;
+    cellWidth = window.innerWidth / gridCols;
+    cellHeight = window.innerHeight / gridRows;
+    playerGradient = drawingContext.createLinearGradient(0, 0, cellWidth, cellHeight);
+    playerGradient.addColorStop(0, 'rgba(255, 255, 0, 0.15)');
+    playerGradient.addColorStop(1, 'rgba(200, 200, 0, 0.25)');
+    enemyGradient = drawingContext.createLinearGradient(0, 0, cellWidth, cellHeight);
+    enemyGradient.addColorStop(0, 'rgba(255, 0, 0, 0.15)');
+    enemyGradient.addColorStop(1, 'rgba(200, 0, 0, 0.25)');
+    rockGradient = drawingContext.createLinearGradient(-10, -10, 10, 10);
+    rockGradient.addColorStop(0, 'rgba(120, 120, 120, 1)');
+    rockGradient.addColorStop(1, 'rgba(80, 80, 80, 1)');
+    treeGradient = drawingContext.createLinearGradient(-10, -10, 10, 10);
+    treeGradient.addColorStop(0, 'rgba(0, 120, 0, 1)');
+    treeGradient.addColorStop(1, 'rgba(0, 80, 0, 1)');
+    console.log(`p5.js canvas initialized: ${width}x${height}, grid=${gridCols}x${gridRows}, cell=${cellWidth.toFixed(1)}x${cellHeight.toFixed(1)}, split=${isVerticalSplit ? 'vertical' : 'horizontal'}`);
     resetGame();
   } catch (e) {
     console.error('Error in setup:', e);
-    document.body.innerHTML = '<p style="color: red; text-align: center;">Failed to initialize game canvas. Please check console for errors.</p>';
+    document.getElementById('error-message').innerText = 'Failed to initialize game canvas. Please refresh and try again.';
+    document.getElementById('error-message').style.display = 'block';
   }
 }
 
 function windowResized() {
-  // Resize canvas dynamically to match window size
-  let canvasWidth = window.innerWidth;
-  let canvasHeight = window.innerHeight;
-  resizeCanvas(canvasWidth, canvasHeight);
-  cellSize = min(canvasWidth, canvasHeight) / gridSize;
-  console.log(`Canvas resized to: ${canvasWidth}x${canvasHeight}, cellSize=${cellSize}`);
-  // Update unit positions to align with new cellSize
+  resizeCanvas(window.innerWidth, window.innerHeight);
+  let aspectRatio = window.innerWidth / window.innerHeight;
+  isVerticalSplit = aspectRatio > 1;
+  if (isVerticalSplit) {
+    gridCols = Math.round(Math.sqrt(1024 * aspectRatio / 2)) * 2;
+    gridRows = Math.round(1024 / gridCols);
+  } else {
+    gridRows = Math.round(Math.sqrt(1024 / aspectRatio / 2)) * 2;
+    gridCols = Math.round(1024 / gridRows);
+  }
+  totalCells = gridCols * gridRows;
+  cellWidth = window.innerWidth / gridCols;
+  cellHeight = window.innerHeight / gridRows;
   playerUnits.forEach(u => {
-    let gridX = floor(u.x / (width / gridSize));
-    let gridY = floor(u.y / (height / gridSize));
-    u.x = gridX * cellSize + cellSize / 2;
-    u.y = gridY * cellSize + cellSize / 2;
+    let gridX = Math.floor(u.x / (width / gridCols));
+    let gridY = Math.floor(u.y / (height / gridRows));
+    u.x = gridX * cellWidth + cellWidth / 2;
+    u.y = gridY * cellHeight + cellHeight / 2;
   });
   enemyUnits.forEach(u => {
-    let gridX = floor(u.x / (width / gridSize));
-    let gridY = floor(u.y / (height / gridSize));
-    u.x = gridX * cellSize + cellSize / 2;
-    u.y = gridY * cellSize + cellSize / 2;
+    let gridX = Math.floor(u.x / (width / gridCols));
+    let gridY = Math.floor(u.y / (height / gridRows));
+    u.x = gridX * cellWidth + cellWidth / 2;
+    u.y = gridY * cellHeight + cellHeight / 2;
   });
-  cacheTerrain(); // Recache terrain with new cellSize
+  cacheTerrain();
+  resetGame();
 }
 
 function resetGame() {
@@ -150,7 +201,7 @@ function resetGame() {
   enemyUnits = [];
   gold = 100;
   enemyGold = 100;
-  controlledCells = totalCells / 2;
+  controlledCells = 0;
   gameStatus = 'Playing';
   spawnFlash = null;
   shotEffects = [];
@@ -163,29 +214,48 @@ function resetGame() {
   inputActive = false;
   inputStartTime = null;
   lastUnitPositions = [];
-  for (let i = 0; i < gridSize; i++) {
+  // Initialize grid with split
+  for (let i = 0; i < gridRows; i++) {
     grid[i] = [];
     terrain[i] = [];
-    for (let j = 0; j < gridSize; j++) {
-      grid[i][j] = i < gridSize / 2 ? 'player' : 'enemy';
+    for (let j = 0; j < gridCols; j++) {
+      if (isVerticalSplit) {
+        grid[i][j] = j < gridCols / 2 ? 'player' : 'enemy';
+      } else {
+        grid[i][j] = i < gridRows / 2 ? 'player' : 'enemy';
+      }
       terrain[i][j] = null;
+      if (grid[i][j] === 'player') controlledCells++;
     }
   }
   let terrainCount = 0;
-  while (terrainCount < 160) {
-    let x = floor(random(gridSize));
-    let y = floor(random(gridSize));
-    if (!terrain[y][x] && !(x >= 4 && x <= 11 && y >= 4 && y <= 11) && !(x >= 28 && x <= 35 && y >= 28 && y <= 35)) {
+  let terrainTarget = Math.round(totalCells * 0.1);
+  while (terrainCount < terrainTarget) {
+    let x = Math.floor(random(gridCols));
+    let y = Math.floor(random(gridRows));
+    let startX = Math.floor(gridCols * 0.1), startY = Math.floor(gridRows * 0.1);
+    let endX = Math.floor(gridCols * 0.9), endY = Math.floor(gridRows * 0.9);
+    if (!terrain[y][x] && !(x >= startX && x <= startX + 6 && y >= startY && y <= startY + 6) && !(x >= endX - 6 && x <= endX && y >= endY - 6 && y <= endY)) {
       terrain[y][x] = random() < 0.5 ? 'R' : 'T';
       terrainCount++;
     }
   }
-  playerUnits.push({ x: 5 * cellSize + cellSize / 2, y: 5 * cellSize + cellSize / 2, type: 'city', health: 500 });
-  playerUnits.push({ x: 10 * cellSize + cellSize / 2, y: 10 * cellSize + cellSize / 2, type: 'bunker', health: 200 });
-  playerUnits.push({ x: 5 * cellSize + cellSize / 2, y: 10 * cellSize + cellSize / 2, type: 'bunker', health: 200 });
-  enemyUnits.push({ x: 34 * cellSize + cellSize / 2, y: 34 * cellSize + cellSize / 2, type: 'city', health: 500 });
-  enemyUnits.push({ x: 29 * cellSize + cellSize / 2, y: 34 * cellSize + cellSize / 2, type: 'bunker', health: 200 });
-  enemyUnits.push({ x: 34 * cellSize + cellSize / 2, y: 29 * cellSize + cellSize / 2, type: 'bunker', health: 200 });
+  // Place player units in player region
+  if (isVerticalSplit) {
+    playerUnits.push({ x: Math.floor(gridCols * 0.1) * cellWidth + cellWidth / 2, y: Math.floor(gridRows * 0.1) * cellHeight + cellHeight / 2, type: 'city', health: 500 });
+    playerUnits.push({ x: Math.floor(gridCols * 0.2) * cellWidth + cellWidth / 2, y: Math.floor(gridRows * 0.2) * cellHeight + cellHeight / 2, type: 'bunker', health: 200 });
+    playerUnits.push({ x: Math.floor(gridCols * 0.1) * cellWidth + cellWidth / 2, y: Math.floor(gridRows * 0.2) * cellHeight + cellHeight / 2, type: 'bunker', health: 200 });
+    enemyUnits.push({ x: Math.floor(gridCols * 0.9) * cellWidth + cellWidth / 2, y: Math.floor(gridRows * 0.9) * cellHeight + cellHeight / 2, type: 'city', health: 500 });
+    enemyUnits.push({ x: Math.floor(gridCols * 0.8) * cellWidth + cellWidth / 2, y: Math.floor(gridRows * 0.9) * cellHeight + cellHeight / 2, type: 'bunker', health: 200 });
+    enemyUnits.push({ x: Math.floor(gridCols * 0.9) * cellWidth + cellWidth / 2, y: Math.floor(gridRows * 0.8) * cellHeight + cellHeight / 2, type: 'bunker', health: 200 });
+  } else {
+    playerUnits.push({ x: Math.floor(gridCols * 0.1) * cellWidth + cellWidth / 2, y: Math.floor(gridRows * 0.1) * cellHeight + cellHeight / 2, type: 'city', health: 500 });
+    playerUnits.push({ x: Math.floor(gridCols * 0.2) * cellWidth + cellWidth / 2, y: Math.floor(gridRows * 0.2) * cellHeight + cellHeight / 2, type: 'bunker', health: 200 });
+    playerUnits.push({ x: Math.floor(gridCols * 0.1) * cellWidth + cellWidth / 2, y: Math.floor(gridRows * 0.2) * cellHeight + cellHeight / 2, type: 'bunker', health: 200 });
+    enemyUnits.push({ x: Math.floor(gridCols * 0.9) * cellWidth + cellWidth / 2, y: Math.floor(gridRows * 0.9) * cellHeight + cellHeight / 2, type: 'city', health: 500 });
+    enemyUnits.push({ x: Math.floor(gridCols * 0.8) * cellWidth + cellWidth / 2, y: Math.floor(gridRows * 0.9) * cellHeight + cellHeight / 2, type: 'bunker', health: 200 });
+    enemyUnits.push({ x: Math.floor(gridCols * 0.9) * cellWidth + cellWidth / 2, y: Math.floor(gridRows * 0.8) * cellHeight + cellHeight / 2, type: 'bunker', health: 200 });
+  }
   spawnEnemy();
   cacheTerrain();
   loop();
@@ -193,12 +263,10 @@ function resetGame() {
 
 function cacheTerrain() {
   terrainCache = [];
-  for (let i = 0; i < gridSize; i++) {
-    for (let j = 0; j < gridSize; j++) {
-      if (terrain[i][j] === 'R') {
-        terrainCache.push({ x: j * cellSize + cellSize / 2, y: i * cellSize + cellSize / 2, type: 'R' });
-      } else if (terrain[i][j] === 'T') {
-        terrainCache.push({ x: j * cellSize + cellSize / 2, y: i * cellSize + cellSize / 2, type: 'T' });
+  for (let i = 0; i < gridRows; i++) {
+    for (let j = 0; j < gridCols; j++) {
+      if (terrain[i][j]) {
+        terrainCache.push({ x: j * cellWidth + cellWidth / 2, y: i * cellHeight + cellHeight / 2, type: terrain[i][j] });
       }
     }
   }
@@ -206,68 +274,47 @@ function cacheTerrain() {
 
 function draw() {
   try {
-    background(50);
+    background(30);
     drawMap();
     updateUnits();
-    let sortedEnemyUnits = enemyUnits.slice();
     playerUnits.forEach(u => drawUnit(u, color(255, 255, 0)));
-    sortedEnemyUnits.forEach(u => drawUnit(u, color(255, 0, 0)));
+    enemyUnits.forEach(u => drawUnit(u, color(255, 0, 0)));
     if (spawnFlash) {
       fill(255, 255, 0, 150);
-      ellipse(spawnFlash.x, spawnFlash.y, 30, 30);
+      ellipse(spawnFlash.x, spawnFlash.y, min(cellWidth, cellHeight) * 0.5, min(cellWidth, cellHeight) * 0.5);
       spawnFlash.timer--;
       if (spawnFlash.timer <= 0) spawnFlash = null;
     }
     shotEffects.forEach(e => {
       stroke(e.color);
+      strokeWeight(2);
       line(e.startX, e.startY, e.endX, e.endY);
       e.timer--;
     });
-    shotEffects = shotEffects.filter(e => e.timer > 0);
-    if (shotEffects.length > 20) shotEffects = shotEffects.slice(-20);
+    shotEffects = shotEffects.filter(e => e.timer > 0).slice(-10);
     missileEffects.forEach(e => {
       if (e.type === 'trajectory') {
         stroke(255, 255, 255, 200);
-        strokeWeight(2);
+        strokeWeight(3);
         line(e.startX, e.startY, e.endX, e.endY);
         e.timer--;
       } else if (e.type === 'explosion') {
-        let alpha = map(e.timer, 0, 40, 0, 255);
-        if (e.stage === 0) {
-          fill(255, 255, 255, alpha);
-          ellipse(e.x, e.y, 20, 20);
-        } else if (e.stage === 1) {
-          fill(255, 165, 0, alpha);
-          ellipse(e.x, e.y, 60, 60);
-        } else {
-          fill(255, 0, 0, alpha);
-          ellipse(e.x, e.y, 80, 80);
-        }
+        let alpha = map(e.timer, 0, 20, 0, 255);
+        fill(255, e.stage === 0 ? 255 : e.stage === 1 ? 165 : 0, e.stage === 0 ? 255 : e.stage === 1 ? 0 : 0, alpha);
+        ellipse(e.x, e.y, e.stage === 0 ? min(cellWidth, cellHeight) : e.stage === 1 ? min(cellWidth, cellHeight) * 1.5 : min(cellWidth, cellHeight) * 2);
         e.timer--;
-        if (e.timer % 8 === 0) e.stage++;
+        if (e.timer % 6 === 0) e.stage++;
       }
     });
-    missileEffects = missileEffects.filter(e => e.timer > 0);
-    if (missileEffects.length > 3) missileEffects = missileEffects.slice(-3);
+    missileEffects = missileEffects.filter(e => e.timer > 0).slice(-2);
     deathEffects.forEach(e => {
-      if (e.type === 'explosion') {
-        let alpha = map(e.timer, 0, 15, 0, 255);
-        if (e.stage === 0) {
-          fill(255, 255, 255, alpha);
-          ellipse(e.x, e.y, 10, 10);
-        } else if (e.stage === 1) {
-          fill(255, 165, 0, alpha);
-          ellipse(e.x, e.y, 30, 30);
-        } else {
-          fill(255, 0, 0, alpha);
-          ellipse(e.x, e.y, 50, 50);
-        }
-        e.timer--;
-        if (e.timer % 5 === 0) e.stage++;
-      }
+      let alpha = map(e.timer, 0, 10, 0, 255);
+      fill(255, e.stage === 0 ? 255 : e.stage === 1 ? 165 : 0, e.stage === 0 ? 255 : e.stage === 1 ? 0 : 0, alpha);
+      ellipse(e.x, e.y, e.stage === 0 ? min(cellWidth, cellHeight) * 0.3 : e.stage === 1 ? min(cellWidth, cellHeight) * 0.8 : min(cellWidth, cellHeight) * 1.2);
+      e.timer--;
+      if (e.timer % 4 === 0) e.stage++;
     });
-    deathEffects = deathEffects.filter(e => e.timer > 0);
-    if (deathEffects.length > 10) deathEffects = deathEffects.slice(-10);
+    deathEffects = deathEffects.filter(e => e.timer > 0).slice(-5);
     noStroke();
     strokeWeight(1);
     if (invalidPlacementMessage && invalidPlacementMessage.timer > 0) {
@@ -277,19 +324,21 @@ function draw() {
       text(invalidPlacementMessage.text, width / 2, min(width, height) * 0.1);
       invalidPlacementMessage.timer--;
     }
-    if (frameCount % 60 === 0) {
+    if (frameCount % 120 === 0) {
       if (unitsMoved()) revertNonAdjacentCells();
     }
     updateUI();
     generateGold();
     checkGameStatus();
-    if (frameCount % 3600 === 0) {
-      console.log(`Debug: frameCount=${frameCount}, FPS=${frameRate().toFixed(1)}, playerzilla: playerUnits=${playerUnits.length}, enemyUnits=${enemyUnits.length}, shotEffects=${shotEffects.length}, missileEffects=${missileEffects.length}, deathEffects=${deathEffects.length}`);
+    if (frameCount % 7200 === 0) {
+      console.log(`Debug: frameCount=${frameCount}, FPS=${frameRate().toFixed(1)}, playerUnits=${playerUnits.length}, enemyUnits=${enemyUnits.length}, controlledCells=${controlledCells}, gameStatus=${gameStatus}`);
     }
   } catch (e) {
     console.error('Error in draw:', e);
+    document.getElementById('error-message').innerText = 'Rendering error: ' + e.message;
+    document.getElementById('error-message').style.display = 'block';
+    console.log('Stopping game loop due to draw error');
     noLoop();
-    document.body.innerHTML += '<p style="color: red; text-align: center;">Rendering error. Please check console for details.</p>';
   }
 }
 
@@ -299,7 +348,7 @@ function unitsMoved() {
   playerUnits.concat(enemyUnits).forEach(u => {
     newPositions.push({ id: u.id || `${u.x}-${u.y}-${u.type}`, x: u.x, y: u.y });
     let prev = lastUnitPositions.find(p => p.id === (u.id || `${u.x}-${u.y}-${u.type}`));
-    if (prev && (abs(u.x - prev.x) > 1 || abs(u.y - prev.y) > 1)) moved = true;
+    if (prev && (Math.abs(u.x - prev.x) > 1 || Math.abs(u.y - prev.y) > 1)) moved = true;
   });
   lastUnitPositions = newPositions;
   return moved;
@@ -315,7 +364,7 @@ function mousePressed() {
 }
 
 function touchStarted() {
-  if (gameStatus !== 'Playing' || touches.length === 0 || touches.length > 1) return false;
+  if (gameStatus !== 'Playing' || touches.length !== 1) return false;
   inputX = touches[0].x;
   inputY = touches[0].y;
   inputStartTime = millis();
@@ -342,112 +391,79 @@ function touchEnded() {
 }
 
 function handleInput(inputX, inputY, holdDuration) {
-  if (inputY > height || inputX < 0 || inputX > width || inputY < 0) {
-    invalidPlacementMessage = { text: 'Click or tap within the game grid', timer: 300 };
-    console.log(`Invalid input: [${inputX},${inputY}] outside grid`);
+  if (inputX < 0 || inputX > width || inputY < 0 || inputY > height) {
+    invalidPlacementMessage = { text: 'Click within grid', timer: 200 };
     return false;
   }
-  let gridX = floor(inputX / cellSize);
-  let gridY = floor(inputY / cellSize);
-  if (gridX < 0 || gridX >= gridSize || gridY < 0 || gridY >= gridSize) {
-    invalidPlacementMessage = { text: 'Click or tap within the game grid', timer: 300 };
-    console.log(`Invalid grid coordinates: [${gridX},${gridY}]`);
+  let gridX = Math.floor(inputX / cellWidth);
+  let gridY = Math.floor(inputY / cellHeight);
+  if (gridX < 0 || gridX >= gridCols || gridY < 0 || gridY >= gridRows) {
+    invalidPlacementMessage = { text: 'Click within grid', timer: 200 };
     return false;
   }
-  let x = gridX * cellSize + cellSize / 2;
-  let y = gridY * cellSize + cellSize / 2;
-
-  // Check for missile launch in enemy territory first
+  let x = gridX * cellWidth + cellWidth / 2;
+  let y = gridY * cellHeight + cellHeight / 2;
   if (grid[gridY][gridX] === 'enemy' && gold >= 500) {
     let playerCity = playerUnits.find(u => u.type === 'city');
     if (playerCity) {
       gold -= 500;
-      missileEffects.push({
-        type: 'trajectory',
-        startX: playerCity.x,
-        startY: playerCity.y,
-        endX: x,
-        endY: y,
-        timer: 10
-      });
-      console.log(`Launching player missile from [${playerCity.x},${playerCity.y}] to [${x},${y}]`);
-      missileEffects.push({
-        type: 'explosion',
-        x: x,
-        y: y,
-        stage: 0,
-        timer: 40
-      });
+      missileEffects.push({ type: 'trajectory', startX: playerCity.x, startY: playerCity.y, endX: x, endY: y, timer: 10 });
+      missileEffects.push({ type: 'explosion', x: x, y: y, stage: 0, timer: 20 });
       playerUnits = playerUnits.filter(u => {
-        if (dist(u.x, u.y, x, y) < 40 && u.type !== 'city') {
-          console.log(`Player unit at [${u.x},${u.y}] destroyed by missile`);
+        if (dist(u.x, u.y, x, y) < min(cellWidth, cellHeight) && u.type !== 'city') {
           playerUnitsDestroyed++;
           return false;
         }
         return true;
       });
       enemyUnits = enemyUnits.filter(u => {
-        if (dist(u.x, u.y, x, y) < 40) {
-          console.log(`Enemy unit at [${u.x},${u.y}] destroyed by missile`);
+        if (dist(u.x, u.y, x, y) < min(cellWidth, cellHeight)) {
           enemyUnitsDestroyed++;
           return false;
         }
         return true;
       });
     } else {
-      invalidPlacementMessage = { text: 'No city to launch missile', timer: 300 };
-      console.log(`Failed to launch missile: No player city found`);
+      invalidPlacementMessage = { text: 'No city for missile', timer: 200 };
     }
   } else if (grid[gridY][gridX] === 'player' && !isUnitAtPosition(x, y) && terrain[gridY][gridX] !== 'R' && terrain[gridY][gridX] !== 'T') {
     let action = holdDuration > 500 ? 'turret' : 'drone';
     if (action === 'drone' && gold >= 40) {
       gold -= 40;
-      let unit = { 
-        x: x, 
-        y: y, 
-        type: 'drone', 
-        health: 70,
-        battery: 1800,
-        patrolTarget: null,
-        stuckCounter: 0
-      };
-      console.log(`Spawning player drone at grid [${gridX},${gridY}], snapped to [${x},${y}]`);
-      playerUnits.push(unit);
-      spawnFlash = { x: unit.x, y: unit.y, timer: 30 };
+      playerUnits.push({ x, y, type: 'drone', health: 70, battery: 1800, patrolTarget: null, stuckCounter: 0 });
+      spawnFlash = { x, y, timer: 20 };
     } else if (action === 'turret' && gold >= 200 && isValidTurretPosition(x, y)) {
       gold -= 200;
-      playerUnits.push({ x: x, y: y, type: 'turret', health: 80, cooldown: 0 });
-      console.log(`Spawning player turret at [${gridX},${gridY}], snapped to [${x},${y}]`);
-      spawnFlash = { x: x, y: y, timer: 30 };
+      playerUnits.push({ x, y, type: 'turret', health: 80, cooldown: 0 });
+      spawnFlash = { x, y, timer: 20 };
     } else {
-      invalidPlacementMessage = { text: `Cannot place ${action} at [${gridX},${gridY}]: ${gold < (action === 'drone' ? 40 : 200) ? 'Not enough gold' : 'Invalid position'}`, timer: 300 };
-      console.log(`Failed to place ${action}: [${gridX},${gridY}], gold=${gold}, validTurret=${isValidTurretPosition(x, y)}`);
+      invalidPlacementMessage = { text: `Cannot place ${action}: ${gold < (action === 'drone' ? 40 : 200) ? 'Low gold' : 'Invalid position'}`, timer: 200 };
     }
   } else {
-    invalidPlacementMessage = { text: `Cannot place unit at [${gridX},${gridY}]: Need a yellow cell${gold < 500 && grid[gridY][gridX] === 'enemy' ? ' and 500 gold for missile' : ''}`, timer: 300 };
-    console.log(`Invalid placement: [${gridX},${gridY}] is ${grid[gridY][gridX]}, unitAtPos=${isUnitAtPosition(x, y)}, terrain=${terrain[gridY][gridX]}, gold=${gold}`);
+    invalidPlacementMessage = { text: `Need yellow cell${gold < 500 && grid[gridY][gridX] === 'enemy' ? ', 500 gold for missile' : ''}`, timer: 200 };
   }
   return false;
 }
 
 function spawnEnemy(type = 'drone') {
-  if (!['drone', 'turret'].includes(type)) {
-    console.error('Invalid unit type:', type);
-    return;
-  }
-  if (enemyUnits.length >= 20) return;
+  if (!['drone', 'turret'].includes(type) || enemyUnits.length >= 15) return;
   let x, y, attempts = 0;
   let isValidPosition = false;
   do {
-    x = floor(random(gridSize));
-    y = floor(random(gridSize / 2, gridSize));
-    isValidPosition = grid[y][x] === 'enemy' && !isUnitAtPosition(x * cellSize + cellSize / 2, y * cellSize + cellSize / 2) && terrain[y][x] !== 'R' && terrain[y][x] !== 'T';
+    if (isVerticalSplit) {
+      x = Math.floor(random(gridCols / 2, gridCols));
+      y = Math.floor(random(gridRows));
+    } else {
+      x = Math.floor(random(gridCols));
+      y = Math.floor(random(gridRows / 2, gridRows));
+    }
+    isValidPosition = grid[y][x] === 'enemy' && !isUnitAtPosition(x * cellWidth + cellWidth / 2, y * cellHeight + cellHeight / 2) && terrain[y][x] !== 'R' && terrain[y][x] !== 'T';
     attempts++;
   } while (!isValidPosition && attempts < 10);
   if (isValidPosition) {
     let unit = { 
-      x: x * cellSize + cellSize / 2, 
-      y: y * cellSize + cellSize / 2, 
+      x: x * cellWidth + cellWidth / 2, 
+      y: y * cellHeight + cellHeight / 2, 
       type, 
       health: type === 'drone' ? enemyDroneHealth : 80,
       battery: type === 'drone' ? 1800 : 0,
@@ -455,40 +471,33 @@ function spawnEnemy(type = 'drone') {
       cooldown: type === 'turret' ? 0 : null,
       stuckCounter: 0
     };
-    if (type === 'turret') {
-      if (isValidTurretPosition(unit.x, unit.y, true)) {
-        enemyUnits.push(unit);
-        console.log(`Spawned enemy turret at [${x},${y}]`);
-      }
-    } else {
+    if (type === 'turret' && isValidTurretPosition(unit.x, unit.y, true)) {
       enemyUnits.push(unit);
-      console.log(`Spawned enemy drone at [${x},${y}]`);
+    } else if (type === 'drone') {
+      enemyUnits.push(unit);
     }
   }
 }
 
 function isUnitAtPosition(x, y) {
-  return enemyUnits.some(u => dist(x, y, u.x, u.y) < 10) || playerUnits.some(u => dist(x, y, u.x, u.y) < 10);
+  return enemyUnits.some(u => dist(x, y, u.x, u.y) < min(cellWidth, cellHeight) * 0.3) || 
+         playerUnits.some(u => dist(x, y, u.x, u.y) < min(cellWidth, cellHeight) * 0.3);
 }
 
 function isValidTurretPosition(x, y, isEnemy = false) {
-  let gridX = floor(x / cellSize);
-  let gridY = floor(y / cellSize);
-  if (gridX < 0 || gridX >= gridSize || gridY < 0 || gridY >= gridSize || !grid[gridY]) {
-    console.log(`Invalid turret position: [${gridX},${gridY}] out of bounds`);
-    return false;
-  }
-  return grid[gridY][gridX] === (isEnemy ? 'enemy' : 'player') && 
-         !isUnitAtPosition(x, y) && 
-         (!terrain[gridY][gridX] || (terrain[gridY][gridX] !== 'R' && terrain[gridY][gridX] !== 'T'));
+  let gridX = Math.floor(x / cellWidth);
+  let gridY = Math.floor(y / cellHeight);
+  if (gridX < 0 || gridX >= gridCols || gridY < 0 || gridY >= gridRows || !grid[gridY]) return false;
+  return grid[gridY][gridX] === (isEnemy ? 'enemy' : 'player') && !isUnitAtPosition(x, y) && terrain[gridY][gridX] !== 'R' && terrain[gridY][gridX] !== 'T';
 }
 
 function updateUnits() {
   playerUnits = playerUnits.filter(u => {
     if (u.health <= 0) {
-      deathEffects.push({ x: u.x, y: u.y, type: 'explosion', stage: 0, timer: 15 });
+      deathEffects.push({ x: u.x, y: u.y, type: 'explosion', stage: 0, timer: 10 });
       if (u.type === 'city') {
         gameStatus = 'Defeat!';
+        console.log('Game stopped: Player city destroyed');
         setTimeout(() => {
           recordGameOutcome('enemy_win');
           noLoop();
@@ -505,9 +514,10 @@ function updateUnits() {
   });
   enemyUnits = enemyUnits.filter(u => {
     if (u.health <= 0) {
-      deathEffects.push({ x: u.x, y: u.y, type: 'explosion', stage: 0, timer: 15 });
+      deathEffects.push({ x: u.x, y: u.y, type: 'explosion', stage: 0, timer: 10 });
       if (u.type === 'city') {
         gameStatus = 'Victory!';
+        console.log('Game stopped: Enemy city destroyed');
         setTimeout(() => {
           recordGameOutcome('player_win');
           noLoop();
@@ -527,9 +537,8 @@ function updateUnits() {
     if (u.type === 'drone') {
       u.battery -= 1;
       moveUnit(u);
-    } else if (u.type === 'turret') {
-      if (u.cooldown > 0) u.cooldown--;
-      shootTurret(u);
+    } else if (u.type === 'turret' && u.cooldown > 0) {
+      u.cooldown--;
     }
   });
   
@@ -537,107 +546,79 @@ function updateUnits() {
     if (u.type === 'drone') {
       u.battery -= 1;
       moveEnemy(u);
-    } else if (u.type === 'turret') {
-      if (u.cooldown > 0) u.cooldown--;
-      shootTurret(u);
+    } else if (u.type === 'turret' && u.cooldown > 0) {
+      u.cooldown--;
     }
   });
 }
 
 function drawUnit(unit, col) {
+  let pulse = 1 + 0.1 * Math.sin(frameCount * 0.1);
+  let scale = min(cellWidth, cellHeight) / 40;
   if (unit.type === 'drone') {
     push();
-    translate(unit.x, unit.y + 2 * sin(frameCount * 0.05));
-    let angle = unit.patrolTarget ? atan2(unit.patrolTarget.y - unit.y, unit.patrolTarget.x - unit.x) : 0;
+    translate(unit.x, unit.y);
+    let angle = unit.patrolTarget ? Math.atan2(unit.patrolTarget.y - unit.y, unit.patrolTarget.x - unit.x) : 0;
     rotate(angle);
-    let gradient = drawingContext.createLinearGradient(-10, -10, 10, 10);
-    gradient.addColorStop(0, 'rgba(150, 150, 150, 1)');
-    gradient.addColorStop(1, col.toString());
-    drawingContext.fillStyle = gradient;
-    rect(-10, -10, 20, 20, 5);
-    stroke(col.levels[0], col.levels[1], col.levels[2], 150);
-    let rotorAngle = frameCount * 0.2;
-    push();
+    fill(col);
+    ellipse(0, 0, 10 * pulse * scale, 10 * pulse * scale);
+    let propSize = 5 * scale;
+    let propOffset = 10 * scale;
+    let propAngle = frameCount * 0.5;
+    fill(150, 150, 150);
     for (let i = 0; i < 4; i++) {
-      let rotorX = 12 * cos(TWO_PI / 4 * i);
-      let rotorY = 12 * sin(TWO_PI / 4 * i);
-      rotate(rotorAngle);
-      ellipse(rotorX, rotorY, 10, 4);
-      ellipse(rotorX, rotorY, 8, 3);
-      rotate(-rotorAngle);
+      let propX = propOffset * cos(TWO_PI / 4 * i + propAngle);
+      let propY = propOffset * sin(TWO_PI / 4 * i + propAngle);
+      ellipse(propX, propY, propSize, propSize);
     }
-    pop();
-    let lightPulse = 1 + 0.3 * sin(frameCount * 0.2);
-    fill(unit.y < height / 2 ? color(0, 255, 0) : color(255, 165, 0));
-    ellipse(-8 * lightPulse, 0, 3, 3);
-    ellipse(8 * lightPulse, 0, 3, 3);
-    noStroke();
-    pop();
-    fill(0);
-    rect(unit.x - 11, unit.y - 26 + 2 * sin(frameCount * 0.05), 22, 7);
     fill(unit.battery > 0 ? color(0, 255, 0) : color(255, 0, 0));
-    rect(unit.x - 10, unit.y - 25 + 2 * sin(frameCount * 0.05), (unit.battery / 1800) * 20, 5);
+    rect(-9 * scale, -15 * scale, (unit.battery / 1800) * 18 * scale, 4 * scale);
+    pop();
   } else if (unit.type === 'turret') {
     push();
     translate(unit.x, unit.y);
-    let target = unit.y < height / 2 ? findNearestEnemyDrone(unit) : findNearestPlayerDrone(unit);
-    let angle = target ? atan2(target.y - unit.y, target.x - unit.x) : 0;
-    if (unit.cooldown <= 0) {
-      noFill();
-      stroke(unit.y < height / 2 ? color(255, 255, 0, 150) : color(255, 0, 0, 150));
-      drawingContext.setLineDash([5, 5]);
-      ellipse(0, 0, 200, 200);
-      drawingContext.setLineDash([]);
+    let target = findNearestEnemyDrone(unit) || findNearestPlayerDrone(unit);
+    let angle = target ? Math.atan2(target.y - unit.y, target.x - unit.x) : 0;
+    fill(unit.cooldown > 0 ? color(120, 120, 120) : col);
+    rect(-10 * pulse * scale, -10 * pulse * scale, 20 * pulse * scale, 20 * pulse * scale);
+    if (unit.cooldown <= 0 && target && dist(unit.x, unit.y, target.x, target.y) < min(cellWidth, cellHeight) * 2.5) {
+      target.health -= 50;
+      unit.cooldown = 300;
+      shotEffects.push({
+        startX: unit.x,
+        startY: unit.y,
+        endX: target.x,
+        endY: target.y,
+        color: col,
+        timer: 5
+      });
+      if (target.health <= 0) {
+        if (col.levels[1] === 255) gold += 20;
+        else enemyGold += 20;
+      }
     }
-    fill(unit.cooldown > 0 ? color(100, 100, 100) : col);
-    rect(-10, -10, 20, 20);
-    push();
-    rotate(angle);
-    ellipse(0, 0, 15, 15);
-    stroke(unit.cooldown > 0 ? color(100, 100, 100) : col);
-    strokeWeight(4);
-    line(0, 0, 20, 0);
-    pop();
-    strokeWeight(1);
-    noStroke();
     pop();
   } else if (unit.type === 'city') {
     push();
     translate(unit.x, unit.y);
-    drawingContext.shadowBlur = 10;
-    drawingContext.shadowColor = col.toString();
     fill(col);
     beginShape();
     for (let i = 0; i < 6; i++) {
       let angle = TWO_PI / 6 * i;
-      vertex(20 * cos(angle), 20 * sin(angle));
+      vertex(20 * pulse * scale * cos(angle), 20 * pulse * scale * sin(angle));
     }
     endShape(CLOSE);
-    stroke(255, 255, 255, 100);
-    for (let i = 0; i < 6; i++) {
-      let angle = TWO_PI / 6 * i;
-      line(0, 0, 15 * cos(angle), 15 * sin(angle));
-    }
-    drawingContext.shadowBlur = 0;
-    noStroke();
     pop();
   } else if (unit.type === 'bunker') {
     push();
     translate(unit.x, unit.y);
-    drawingContext.shadowBlur = 8;
-    drawingContext.shadowColor = col.toString();
     fill(col);
     beginShape();
     for (let i = 0; i < 6; i++) {
       let angle = TWO_PI / 6 * i;
-      vertex(15 * cos(angle), 15 * sin(angle));
+      vertex(15 * pulse * scale * cos(angle), 15 * pulse * scale * sin(angle));
     }
     endShape(CLOSE);
-    stroke(255, 255, 100);
-    line(-10, 0, 10, 0);
-    line(0, -10, 0, 10);
-    drawingContext.shadowBlur = 0;
-    noStroke();
     pop();
   }
 }
@@ -672,27 +653,6 @@ function findNearestPlayerDrone(unit) {
   return closest;
 }
 
-function shootTurret(unit) {
-  if (unit.cooldown > 0) return;
-  let target = unit.y < height / 2 ? findNearestEnemyDrone(unit) : findNearestPlayerDrone(unit);
-  if (target && dist(unit.x, unit.y, target.x, target.y) < 100) {
-    target.health -= 50;
-    unit.cooldown = 300;
-    shotEffects.push({
-      startX: unit.x,
-      startY: unit.y,
-      endX: target.x,
-      endY: target.y,
-      color: unit.y < height / 2 ? color(255, 255, 0) : color(255, 0, 0),
-      timer: 5
-    });
-    if (target.health <= 0) {
-      if (unit.y < height / 2) gold += 20;
-      else enemyGold += 20;
-    }
-  }
-}
-
 function moveUnit(unit) {
   if (!unit.stuckCounter) unit.stuckCounter = 0;
   let prevX = unit.x, prevY = unit.y;
@@ -703,7 +663,7 @@ function moveUnit(unit) {
   enemyUnits.forEach(t => {
     if (t.type === 'turret' && t.cooldown <= 0) {
       let d = dist(unit.x, unit.y, t.x, t.y);
-      if (d < minDist && d < 100) {
+      if (d < minDist && d < min(cellWidth, cellHeight) * 2.5) {
         minDist = d;
         nearestArmedTurret = t;
       }
@@ -711,80 +671,53 @@ function moveUnit(unit) {
   });
   let dx = 0, dy = 0;
   if (nearestArmedTurret) {
-    let turretDx = unit.x - nearestArmedTurret.x;
-    let turretDy = unit.y - nearestArmedTurret.y;
     let turretDist = dist(unit.x, unit.y, nearestArmedTurret.x, nearestArmedTurret.y) || 1;
-    let repulsionStrength = (100 - turretDist) / 100;
-    dx = turretDx / turretDist * 3 * repulsionStrength;
-    dy = turretDy / turretDist * 3 * repulsionStrength;
-    let newX = constrain(unit.x + dx * 2, 0, width);
-    let newY = constrain(unit.y + dy * 2, 0, height);
-    unit.x = newX;
-    unit.y = newY;
-  } else if (target && dist(unit.x, unit.y, target.x, target.y) < 100) {
-    let d = dist(unit.x, unit.y, target.x, target.y);
-    dx = target.x - unit.x;
-    dy = target.y - unit.y;
-    let distVal = d || 1;
-    if (distVal > 10) {
-      let newX = constrain(unit.x + (dx / distVal) * 2, 0, width);
-      let newY = constrain(unit.y + (dy / distVal) * 2, 0, height);
-      unit.x = newX;
-      unit.y = newY;
-    } else if (d > 0) {
+    dx = (unit.x - nearestArmedTurret.x) / turretDist * 3 * (100 - turretDist) / 100;
+    dy = (unit.y - nearestArmedTurret.y) / turretDist * 3 * (100 - turretDist) / 100;
+    unit.x = constrain(unit.x + dx * 2, 0, width);
+    unit.y = constrain(unit.y + dy * 2, 0, height);
+  } else if (target && dist(unit.x, unit.y, target.x, target.y) < min(cellWidth, cellHeight) * 2.5) {
+    let d = dist(unit.x, unit.y, target.x, target.y) || 1;
+    dx = (target.x - unit.x) / d;
+    dy = (target.y - unit.y) / d;
+    if (d > min(cellWidth, cellHeight) * 0.25) {
+      unit.x = constrain(unit.x + dx * 2, 0, width);
+      unit.y = constrain(unit.y + dy * 2, 0, height);
+    } else {
       target.health -= damage;
       if (target.health <= 0) {
-        deathEffects.push({ x: target.x, y: target.y, type: 'explosion', stage: 0, timer: 15 });
+        deathEffects.push({ x: target.x, y: target.y, type: 'explosion', stage: 0, timer: 10 });
         gold += target.type === 'city' ? 100 : target.type === 'bunker' ? 50 : 20;
         enemyGold += 20;
       }
     }
   } else {
-    if (!unit.patrolTarget || dist(unit.x, unit.y, unit.patrolTarget.x, unit.patrolTarget.y) < 10 || unit.stuckCounter > 15) {
+    if (!unit.patrolTarget || dist(unit.x, unit.y, unit.patrolTarget.x, unit.patrolTarget.y) < min(cellWidth, cellHeight) * 0.25 || unit.stuckCounter > 10) {
       let validCells = [];
-      for (let i = gridSize / 2; i < gridSize; i++) {
-        for (let j = 0; j < gridSize; j++) {
-          if (grid[i][j] === 'enemy' && terrain[i][j] !== 'R' && terrain[i][j] !== 'T' && !isUnitAtPosition(j * cellSize + cellSize / 2, i * cellSize + cellSize / 2)) {
-            validCells.push({ x: j * cellSize + cellSize / 2, y: i * cellSize + cellSize / 2 });
+      for (let i = 0; i < gridRows; i++) {
+        for (let j = 0; j < gridCols; j++) {
+          if (terrain[i][j] !== 'R' && terrain[i][j] !== 'T' && !isUnitAtPosition(j * cellWidth + cellWidth / 2, i * cellHeight + cellHeight / 2)) {
+            validCells.push({ x: j * cellWidth + cellWidth / 2, y: i * cellHeight + cellHeight / 2 });
           }
         }
       }
-      if (validCells.length > 0) {
-        unit.patrolTarget = random(validCells);
-        unit.stuckCounter = 0;
-        console.log(`Unit at [${unit.x},${unit.y}] assigned new patrol target: [${unit.patrolTarget.x},${unit.patrolTarget.y}]`);
-      } else {
-        let enemyCity = enemyUnits.find(u => u.type === 'city');
-        if (enemyCity) {
-          unit.patrolTarget = { x: enemyCity.x, y: enemyCity.y };
-          unit.stuckCounter = 0;
-        } else {
-          unit.patrolTarget = { x: random(width), y: random(height / 2, height) };
-          unit.stuckCounter = 0;
-        }
-      }
+      unit.patrolTarget = validCells.length > 0 ? random(validCells) : { x: random(width), y: random(height) };
+      unit.stuckCounter = 0;
     }
     if (unit.patrolTarget) {
-      dx = unit.patrolTarget.x - unit.x;
-      dy = unit.patrolTarget.y - unit.y;
-      let distVal = dist(unit.x, unit.y, unit.patrolTarget.x, unit.patrolTarget.y);
-      if (distVal > 0) {
-        let newX = constrain(unit.x + (dx / distVal) * 2, 0, width);
-        let newY = constrain(unit.y + (dy / distVal) * 2, 0, height);
-        unit.x = newX;
-        unit.y = newY;
-      }
+      let distVal = dist(unit.x, unit.y, unit.patrolTarget.x, unit.patrolTarget.y) || 1;
+      dx = (unit.patrolTarget.x - unit.x) / distVal;
+      dy = (unit.patrolTarget.y - unit.y) / distVal;
+      unit.x = constrain(unit.x + dx * 2, 0, width);
+      unit.y = constrain(unit.y + dy * 2, 0, height);
     }
   }
-  if (frameCount % 15 === 0) {
-    updateGrid(unit);
-  }
-  if (abs(unit.x - prevX) < 0.1 && abs(unit.y - prevY) < 0.1) {
+  if (frameCount % 30 === 0) updateGrid(unit);
+  if (Math.abs(unit.x - prevX) < 0.1 && Math.abs(unit.y - prevY) < 0.1) {
     unit.stuckCounter++;
-    if (unit.stuckCounter > 15) {
-      unit.stuckCounter = 0;
+    if (unit.stuckCounter > 10) {
       unit.patrolTarget = null;
-      console.log(`Unit at [${unit.x},${unit.y}] reset patrol due to being stuck`);
+      console.log(`Drone stuck: resetting patrolTarget at x=${unit.x}, y=${unit.y}`);
     }
   } else {
     unit.stuckCounter = 0;
@@ -799,7 +732,7 @@ function moveEnemy(unit) {
   playerUnits.forEach(p => {
     if (p.type === 'turret' && p.cooldown <= 0) {
       let d = dist(unit.x, unit.y, p.x, p.y);
-      if (d < minDist && d < 100) {
+      if (d < minDist && d < min(cellWidth, cellHeight) * 2.5) {
         minDist = d;
         nearestArmedTurret = p;
       }
@@ -808,81 +741,55 @@ function moveEnemy(unit) {
   let damage = 0.5;
   if (unit.type === 'drone') {
     if (nearestArmedTurret) {
-      let turretDx = unit.x - nearestArmedTurret.x;
-      let turretDy = unit.y - nearestArmedTurret.y;
       let turretDist = dist(unit.x, unit.y, nearestArmedTurret.x, nearestArmedTurret.y) || 1;
-      let repulsionStrength = (100 - turretDist) / 100;
-      let dx = turretDx / turretDist * 3 * repulsionStrength;
-      let dy = turretDy / turretDist * 3 * repulsionStrength;
-      let newX = constrain(unit.x + dx * 2, 0, width);
-      let newY = constrain(unit.y + dy * 2, 0, height);
-      unit.x = newX;
-      unit.y = newY;
+      let dx = (unit.x - nearestArmedTurret.x) / turretDist * 3 * (100 - turretDist) / 100;
+      let dy = (unit.y - nearestArmedTurret.y) / turretDist * 3 * (100 - turretDist) / 100;
+      unit.x = constrain(unit.x + dx * 2, 0, width);
+      unit.y = constrain(unit.y + dy * 2, 0, height);
     } else {
       let target = findNearestPlayerUnit(unit);
-      if (target && target.type !== 'turret' && dist(unit.x, unit.y, target.x, target.y) < 100) {
-        let dx = target.x - unit.x;
-        let dy = target.y - unit.y;
+      if (target && target.type !== 'turret' && dist(unit.x, unit.y, target.x, target.y) < min(cellWidth, cellHeight) * 2.5) {
         let distVal = dist(unit.x, unit.y, target.x, target.y) || 1;
-        if (distVal > 10) {
-          let newX = constrain(unit.x + (dx / distVal) * 2, 0, width);
-          let newY = constrain(unit.y + (dy / distVal) * 2, 0, height);
-          unit.x = newX;
-          unit.y = newY;
-        } else if (distVal > 0) {
+        let dx = (target.x - unit.x) / distVal;
+        let dy = (target.y - unit.y) / distVal;
+        if (distVal > min(cellWidth, cellHeight) * 0.25) {
+          unit.x = constrain(unit.x + dx * 2, 0, width);
+          unit.y = constrain(unit.y + dy * 2, 0, height);
+        } else {
           target.health -= damage;
           if (target.health <= 0) {
-            deathEffects.push({ x: target.x, y: target.y, type: 'explosion', stage: 0, timer: 15 });
+            deathEffects.push({ x: target.x, y: target.y, type: 'explosion', stage: 0, timer: 10 });
             enemyGold += target.type === 'city' ? 100 : target.type === 'bunker' ? 50 : 20;
           }
         }
       } else {
-        if (!unit.patrolTarget || dist(unit.x, unit.y, unit.patrolTarget.x, unit.patrolTarget.y) < 10 || unit.stuckCounter > 15) {
+        if (!unit.patrolTarget || dist(unit.x, unit.y, unit.patrolTarget.x, unit.patrolTarget.y) < min(cellWidth, cellHeight) * 0.25 || unit.stuckCounter > 10) {
           let validCells = [];
-          for (let i = 0; i < gridSize / 2; i++) {
-            for (let j = 0; j < gridSize; j++) {
-              if (grid[i][j] === 'player' && terrain[i][j] !== 'R' && terrain[i][j] !== 'T' && !isUnitAtPosition(j * cellSize + cellSize / 2, i * cellSize + cellSize / 2)) {
-                validCells.push({ x: j * cellSize + cellSize / 2, y: i * cellSize + cellSize / 2 });
+          for (let i = 0; i < gridRows; i++) {
+            for (let j = 0; j < gridCols; j++) {
+              if (terrain[i][j] !== 'R' && terrain[i][j] !== 'T' && !isUnitAtPosition(j * cellWidth + cellWidth / 2, i * cellHeight + cellHeight / 2)) {
+                validCells.push({ x: j * cellWidth + cellWidth / 2, y: i * cellHeight + cellHeight / 2 });
               }
             }
           }
-          if (validCells.length > 0) {
-            unit.patrolTarget = random(validCells);
-            unit.stuckCounter = 0;
-            console.log(`Enemy unit at [${unit.x},${unit.y}] assigned new patrol target: [${unit.patrolTarget.x},${unit.patrolTarget.y}]`);
-          } else {
-            let playerCity = playerUnits.find(u => u.type === 'city');
-            if (playerCity) {
-              unit.patrolTarget = { x: playerCity.x, y: playerCity.y };
-              unit.stuckCounter = 0;
-            } else {
-              unit.patrolTarget = { x: random(width), y: random(0, height / 2) };
-              unit.stuckCounter = 0;
-            }
-          }
+          unit.patrolTarget = validCells.length > 0 ? random(validCells) : { x: random(width), y: random(height) };
+          unit.stuckCounter = 0;
         }
         if (unit.patrolTarget) {
-          let dx = unit.patrolTarget.x - unit.x;
-          let dy = unit.patrolTarget.y - unit.y;
-          let distVal = dist(unit.x, unit.y, unit.patrolTarget.x, unit.patrolTarget.y);
-          if (distVal > 0) {
-            let newX = constrain(unit.x + (dx / distVal) * 2, 0, width);
-            let newY = constrain(unit.y + (dy / distVal) * 2, 0, height);
-            unit.x = newX;
-            unit.y = newY;
-          }
+          let distVal = dist(unit.x, unit.y, unit.patrolTarget.x, unit.patrolTarget.y) || 1;
+          let dx = (unit.patrolTarget.x - unit.x) / distVal;
+          let dy = (unit.patrolTarget.y - unit.y) / distVal;
+          unit.x = constrain(unit.x + dx * 2, 0, width);
+          unit.y = constrain(unit.y + dy * 2, 0, height);
         }
       }
     }
-    if (frameCount % 15 === 0) {
-      updateEnemyGrid(unit);
-    }
-    if (abs(unit.x - prevX) < 0.1 && abs(unit.y - prevY) < 0.1) {
+    if (frameCount % 30 === 0) updateEnemyGrid(unit);
+    if (Math.abs(unit.x - prevX) < 0.1 && Math.abs(unit.y - prevY) < 0.1) {
       unit.stuckCounter++;
-      if (unit.stuckCounter > 15) {
-        unit.stuckCounter = 0;
+      if (unit.stuckCounter > 10) {
         unit.patrolTarget = null;
-        console.log(`Enemy unit at [${unit.x},${unit.y}] reset patrol due to being stuck`);
+        console.log(`Enemy drone stuck: resetting patrolTarget at x=${unit.x}, y=${unit.y}`);
       }
     } else {
       unit.stuckCounter = 0;
@@ -911,7 +818,7 @@ function findNearestPlayerUnit(unit) {
       let d = dist(unit.x, unit.y, p.x, p.y);
       if (d < minDist) {
         minDist = d;
-        closest = p;
+        closeness = p;
       }
     }
   });
@@ -919,52 +826,38 @@ function findNearestPlayerUnit(unit) {
 }
 
 function updateGrid(unit) {
-  let gridX = floor(unit.x / cellSize);
-  let gridY = floor(unit.y / cellSize);
-  if (gridX >= 0 && gridX < gridSize && gridY >= 0 && gridY < gridSize) {
-    if (grid[gridY][gridX] === 'enemy') {
-      let hasAdjacentPlayer = false;
-      for (let di of [-1, 0, 1]) {
-        for (let dj of [-1, 0, 1]) {
-          if (Math.abs(di) + Math.abs(dj) === 1) {
-            let ni = gridY + di, nj = gridX + dj;
-            if (ni >= 0 && ni < gridSize && nj >= 0 && nj < gridSize) {
-              if (grid[ni][nj] === 'player') {
-                hasAdjacentPlayer = true;
-              }
-            }
+  let gridX = Math.floor(unit.x / cellWidth);
+  let gridY = Math.floor(unit.y / cellHeight);
+  if (gridX >= 0 && gridX < gridCols && gridY >= 0 && gridY < gridRows && grid[gridY][gridX] === 'enemy') {
+    for (let di of [-1, 0, 1]) {
+      for (let dj of [-1, 0, 1]) {
+        if (Math.abs(di) + Math.abs(dj) === 1) {
+          let ni = gridY + di, nj = gridX + dj;
+          if (ni >= 0 && ni < gridRows && nj >= 0 && nj < gridCols && grid[ni][nj] === 'player') {
+            grid[gridY][gridX] = 'player';
+            controlledCells = Math.min(Math.floor(controlledCells + 1), totalCells);
+            return;
           }
         }
-      }
-      if (hasAdjacentPlayer) {
-        grid[gridY][gridX] = 'player';
-        controlledCells = min(controlledCells + 1, totalCells);
       }
     }
   }
 }
 
 function updateEnemyGrid(unit) {
-  let gridX = floor(unit.x / cellSize);
-  let gridY = floor(unit.y / cellSize);
-  if (gridX >= 0 && gridX < gridSize && gridY >= 0 && gridY < gridSize) {
-    if (grid[gridY][gridX] === 'player') {
-      let hasAdjacentEnemy = false;
-      for (let di of [-1, 0, 1]) {
-        for (let dj of [-1, 0, 1]) {
-          if (Math.abs(di) + Math.abs(dj) === 1) {
-            let ni = gridY + di, nj = gridX + dj;
-            if (ni >= 0 && ni < gridSize && nj >= 0 && nj < gridSize) {
-              if (grid[ni][nj] === 'enemy') {
-                hasAdjacentEnemy = true;
-              }
-            }
+  let gridX = Math.floor(unit.x / cellWidth);
+  let gridY = Math.floor(unit.y / cellHeight);
+  if (gridX >= 0 && gridX < gridCols && gridY >= 0 && gridY < gridRows && grid[gridY][gridX] === 'player') {
+    for (let di of [-1, 0, 1]) {
+      for (let dj of [-1, 0, 1]) {
+        if (Math.abs(di) + Math.abs(dj) === 1) {
+          let ni = gridY + di, nj = gridX + dj;
+          if (ni >= 0 && ni < gridRows && nj >= 0 && nj < gridCols && grid[ni][nj] === 'enemy') {
+            grid[gridY][gridX] = 'enemy';
+            controlledCells = Math.max(Math.floor(controlledCells - 1), 0);
+            return;
           }
         }
-      }
-      if (hasAdjacentEnemy) {
-        grid[gridY][gridX] = 'enemy';
-        controlledCells = max(controlledCells - 1, 0);
       }
     }
   }
@@ -972,15 +865,14 @@ function updateEnemyGrid(unit) {
 
 function generateGold() {
   if (frameCount % 60 === 0) {
-    gold += floor(controlledCells / 8) + 5;
-    enemyGold += floor((totalCells - controlledCells) / 8) + 5;
-    let maxSpawns = 3; // Increased from 2 to allow more enemy spawns
+    gold += Math.floor(controlledCells / 8) + 5;
+    enemyGold += Math.floor((totalCells - controlledCells) / 8) + 5;
+    let maxSpawns = 2;
     let spawns = 0;
-    let adjustedDroneProb = enemyUnits.length > 15 ? enemySpawnProbs.drone * 0.7 : enemySpawnProbs.drone; // Slightly less reduction for drone probability
-    if (enemyUnits.length < 20) {
-      while (enemyGold >= 40 && spawns < maxSpawns && enemyUnits.length < 20) {
-        let rand = random();
-        if (rand < adjustedDroneProb && enemyGold >= 40) {
+    let adjustedDroneProb = enemyUnits.length > 10 ? enemySpawnProbs.drone * 0.7 : enemySpawnProbs.drone;
+    if (enemyUnits.length < 15) {
+      while (enemyGold >= 40 && spawns < maxSpawns && enemyUnits.length < 15) {
+        if (random() < adjustedDroneProb && enemyGold >= 40) {
           enemyGold -= 40;
           spawnEnemy('drone');
           spawns++;
@@ -991,13 +883,11 @@ function generateGold() {
         }
       }
     }
-    if (enemyGold >= 500 && controlledCells > 0.5 * totalCells) { // Lowered threshold from 0.6 to 0.5
+    if (enemyGold >= 500 && controlledCells > 0.5 * totalCells) {
       let playerCells = [];
-      for (let i = 0; i < gridSize; i++) {
-        for (let j = 0; j < gridSize; j++) {
-          if (grid[i][j] === 'player') {
-            playerCells.push({ x: j * cellSize + cellSize / 2, y: i * cellSize + cellSize / 2 });
-          }
+      for (let i = 0; i < gridRows; i++) {
+        for (let j = 0; j < gridCols; j++) {
+          if (grid[i][j] === 'player') playerCells.push({ x: j * cellWidth + cellWidth / 2, y: i * cellHeight + cellHeight / 2 });
         }
       }
       if (playerCells.length > 0) {
@@ -1005,30 +895,17 @@ function generateGold() {
         let enemyCity = enemyUnits.find(u => u.type === 'city');
         if (enemyCity) {
           enemyGold -= 500;
-          missileEffects.push({
-            type: 'trajectory',
-            startX: enemyCity.x,
-            startY: enemyCity.y,
-            endX: target.x,
-            endY: target.y,
-            timer: 10
-          });
-          missileEffects.push({
-            type: 'explosion',
-            x: target.x,
-            y: target.y,
-            stage: 0,
-            timer: 40
-          });
+          missileEffects.push({ type: 'trajectory', startX: enemyCity.x, startY: enemyCity.y, endX: target.x, endY: target.y, timer: 10 });
+          missileEffects.push({ type: 'explosion', x: target.x, y: target.y, stage: 0, timer: 20 });
           playerUnits = playerUnits.filter(u => {
-            if (dist(u.x, u.y, target.x, target.y) < 40 && u.type !== 'city') {
+            if (dist(u.x, u.y, target.x, target.y) < min(cellWidth, cellHeight) && u.type !== 'city') {
               playerUnitsDestroyed++;
               return false;
             }
             return true;
           });
           enemyUnits = enemyUnits.filter(u => {
-            if (dist(u.x, u.y, target.x, target.y) < 40) {
+            if (dist(u.x, u.y, target.x, target.y) < min(cellWidth, cellHeight)) {
               enemyUnitsDestroyed++;
               return false;
             }
@@ -1041,27 +918,28 @@ function generateGold() {
 }
 
 function updateUI() {
-  document.getElementById('gold').innerText = floor(gold);
-  document.getElementById('enemyGold').innerText = floor(enemyGold);
+  document.getElementById('gold').innerText = Math.floor(gold);
+  document.getElementById('enemyGold').innerText = Math.floor(enemyGold);
   document.getElementById('area').innerText = ((controlledCells / totalCells) * 100).toFixed(1) + '%';
   document.getElementById('status').innerText = gameStatus;
   document.getElementById('playerDrones').innerText = playerUnits.filter(u => u.type === 'drone').length;
   document.getElementById('playerTurrets').innerText = playerUnits.filter(u => u.type === 'turret').length;
   document.getElementById('playerUnitsDestroyed').innerText = playerUnitsDestroyed;
   document.getElementById('enemyUnitsDestroyed').innerText = enemyUnitsDestroyed;
-  document.getElementById('action-indicator').innerText = inputActive && inputStartTime ? (grid[floor(inputY / cellSize)][floor(inputX / cellSize)] === 'enemy' ? 'Preparing missile...' : (millis() - inputStartTime > 200 ? 'Holding for turret...' : '')) : '';
+  document.getElementById('action-indicator').innerText = inputActive && inputStartTime ? (grid[Math.floor(inputY / cellHeight)][Math.floor(inputX / cellWidth)] === 'enemy' ? 'Preparing missile...' : (millis() - inputStartTime > 200 ? 'Holding for turret...' : '')) : '';
 }
 
 function checkGameStatus() {
-  controlledCells = floor(controlledCells);
   if (controlledCells >= totalCells && gameStatus === 'Playing') {
     gameStatus = 'Victory!';
+    console.log('Game stopped: All cells captured by player');
     setTimeout(() => {
       recordGameOutcome('player_win');
       noLoop();
     }, 2000);
   } else if (controlledCells <= 0 && gameStatus === 'Playing') {
     gameStatus = 'Defeat!';
+    console.log('Game stopped: All cells lost');
     setTimeout(() => {
       recordGameOutcome('enemy_win');
       noLoop();
@@ -1070,17 +948,13 @@ function checkGameStatus() {
 }
 
 function recordGameOutcome(outcome) {
-  let playerTurrets = playerUnits.filter(u => u.type === 'turret').length;
-  let playerDrones = playerUnits.filter(u => u.type === 'drone').length;
-  let enemyTurrets = enemyUnits.filter(u => u.type === 'turret').length;
-  let enemyDrones = enemyUnits.filter(u => u.type === 'drone').length;
   gameHistory.push({ 
     outcome, 
     playerCells: controlledCells, 
-    playerTurrets, 
-    playerDrones,
-    enemyTurrets,
-    enemyDrones,
+    playerTurrets: playerUnits.filter(u => u.type === 'turret').length,
+    playerDrones: playerUnits.filter(u => u.type === 'drone').length,
+    enemyTurrets: enemyUnits.filter(u => u.type === 'turret').length,
+    enemyDrones: enemyUnits.filter(u => u.type === 'drone').length,
     playerGold: gold,
     enemyGold
   });
@@ -1092,7 +966,6 @@ function updateEnemyStrategy() {
     let lastRound = gameHistory[gameHistory.length - 1];
     let totalPlayerUnits = lastRound.playerTurrets + lastRound.playerDrones;
     let totalEnemyUnits = lastRound.enemyTurrets + lastRound.enemyDrones;
-    
     if (lastRound.outcome === 'player_win') {
       if (lastRound.playerTurrets > totalPlayerUnits * 0.4) {
         enemySpawnProbs.turret = Math.min(enemySpawnProbs.turret + 0.1, 0.5);
@@ -1124,67 +997,70 @@ function updateEnemyStrategy() {
 }
 
 function drawMap() {
-  for (let i = 0; i < gridSize; i++) {
-    for (let j = 0; j < gridSize; j++) {
-      if (!['player', 'enemy'].includes(grid[i][j])) {
-        grid[i][j] = i < gridSize / 2 ? 'player' : 'enemy';
-      }
+  for (let i = 0; i < gridRows; i++) {
+    for (let j = 0; j < gridCols; j++) {
       drawingContext.fillStyle = grid[i][j] === 'player' ? playerGradient : enemyGradient;
-      rect(j * cellSize, i * cellSize, cellSize, cellSize);
+      rect(j * cellWidth, i * cellHeight, cellWidth, cellHeight);
     }
   }
   terrainCache.forEach(t => {
     if (t.type === 'R') {
-      fill(100, 100, 100);
-      ellipse(t.x, t.y, 20, 20);
+      drawingContext.fillStyle = rockGradient;
+      ellipse(t.x, t.y, min(cellWidth, cellHeight) * 0.5, min(cellWidth, cellHeight) * 0.5);
       fill(80, 80, 80);
-      ellipse(t.x + 5, t.y + 5, 10, 10);
+      ellipse(t.x + min(cellWidth, cellHeight) * 0.125, t.y + min(cellWidth, cellHeight) * 0.125, min(cellWidth, cellHeight) * 0.25, min(cellWidth, cellHeight) * 0.25);
     } else if (t.type === 'T') {
-      fill(0, 100, 0);
-      triangle(
-        t.x, t.y - 10,
-        t.x - 10, t.y + 10,
-        t.x + 10, t.y + 10
-      );
+      drawingContext.fillStyle = treeGradient;
+      triangle(t.x, t.y - min(cellWidth, cellHeight) * 0.25, t.x - min(cellWidth, cellHeight) * 0.25, t.y + min(cellWidth, cellHeight) * 0.25, t.x + min(cellWidth, cellHeight) * 0.25, t.y + min(cellWidth, cellHeight) * 0.25);
       fill(139, 69, 19);
-      rect(t.x - 3, t.y + 10, 6, 6);
+      rect(t.x - min(cellWidth, cellHeight) * 0.1, t.y + min(cellWidth, cellHeight) * 0.25, min(cellWidth, cellHeight) * 0.2, min(cellWidth, cellHeight) * 0.2);
     }
   });
-  stroke(0, 0, 0, 50);
-  for (let i = 0; i <= gridSize; i++) {
-    line(i * cellSize, 0, i * cellSize, height);
-    line(0, i * cellSize, width, i * cellSize);
+  stroke(0, 0, 0, 60);
+  strokeWeight(0.5);
+  for (let i = 0; i <= gridRows; i++) {
+    line(0, i * cellHeight, width, i * cellHeight);
+  }
+  for (let j = 0; j <= gridCols; j++) {
+    line(j * cellWidth, 0, j * cellWidth, height);
   }
   noStroke();
   if (inputActive && gameStatus === 'Playing' && (touches.length > 0 || mouseIsPressed)) {
-    let gridX = floor(inputX / cellSize);
-    let gridY = floor(inputY / cellSize);
-    let snappedX = gridX * cellSize + cellSize / 2;
-    let snappedY = gridY * cellSize + cellSize / 2;
-    if (gridX >= 0 && gridX < gridSize && gridY >= 0 && gridY < gridSize) {
+    let gridX = Math.floor(inputX / cellWidth);
+    let gridY = Math.floor(inputY / cellHeight);
+    let snappedX = gridX * cellWidth + cellWidth / 2;
+    let snappedY = gridY * cellHeight + cellHeight / 2;
+    if (gridX >= 0 && gridX < gridCols && gridY >= 0 && gridY < gridRows) {
       let holdDuration = inputStartTime ? millis() - inputStartTime : 0;
+      let pulse = 1 + 0.1 * Math.sin(frameCount * 0.1);
+      let scale = min(cellWidth, cellHeight) / 40;
       if (grid[gridY][gridX] === 'enemy') {
-        fill(255, 0, 0, 50);
-        ellipse(snappedX, snappedY, 80, 80);
+        fill(255, 0, 0, 60);
+        ellipse(snappedX, snappedY, min(cellWidth, cellHeight) * 1.75 * pulse, min(cellWidth, cellHeight) * 1.75 * pulse);
       } else if (grid[gridY][gridX] === 'player' && !isUnitAtPosition(snappedX, snappedY) && terrain[gridY][gridX] !== 'R' && terrain[gridY][gridX] !== 'T') {
         let action = holdDuration > 500 ? 'turret' : 'drone';
         if (action === 'drone') {
-          fill(255, 255, 0, 50);
-          rect(gridX * cellSize, gridY * cellSize, cellSize, cellSize);
+          fill(255, 255, 0, 60);
+          rect(gridX * cellWidth, gridY * cellHeight, cellWidth, cellHeight);
+          push();
+          translate(snappedX, snappedY);
           fill(255, 255, 0);
-          rect(snappedX - 10, snappedY - 10, 20, 20, 5);
-        } else if (action === 'turret' && isValidTurretPosition(snappedX, snappedY)) {
-          fill(255, 255, 0, 50);
-          rect(gridX * cellSize, gridY * cellSize, cellSize, cellSize);
-          noFill();
-          stroke(255, 255, 0, 150);
-          drawingContext.setLineDash([5, 5]);
-          ellipse(snappedX, snappedY, 200, 200);
-          drawingContext.setLineDash([]);
-          noStroke();
+          ellipse(0, 0, 10 * pulse * scale, 10 * pulse * scale);
+          let propSize = 5 * scale;
+          let propOffset = 10 * scale;
+          let propAngle = frameCount * 0.5;
+          fill(150, 150, 150);
+          for (let i = 0; i < 4; i++) {
+            let propX = propOffset * cos(TWO_PI / 4 * i + propAngle);
+            let propY = propOffset * sin(TWO_PI / 4 * i + propAngle);
+            ellipse(propX, propY, propSize, propSize);
+          }
+          pop();
+        } else if (action == 'turret' && isValidTurretPosition(snappedX, snappedY)) {
+          fill(255, 255, 0, 60);
+          rect(gridX * cellWidth, gridY * cellHeight, cellWidth, cellHeight);
           fill(255, 255, 0);
-          rect(snappedX - 10, snappedY - 10, 20, 20);
-          rect(snappedX - 5, snappedY - 5, 10, 10);
+          rect(snappedX - 10 * pulse * scale, snappedY - 10 * pulse * scale, 20 * pulse * scale, 20 * pulse * scale);
         }
       }
     }
@@ -1193,32 +1069,34 @@ function drawMap() {
 
 function revertNonAdjacentCells() {
   let changes = 0;
-  for (let i = 0; i < gridSize && changes < 50; i++) {
-    for (let j = 0; j < gridSize && changes < 50; j++) {
+  let playerCity = playerUnits.find(u => u.type === 'city');
+  let cityX = playerCity ? Math.floor(playerCity.x / cellWidth) : Math.floor(gridCols * 0.1);
+  let cityY = playerCity ? Math.floor(playerCity.y / cellHeight) : Math.floor(gridRows * 0.1);
+  for (let i = 0; i < gridRows && changes < 30; i++) {
+    for (let j = 0; j < gridCols && changes < 30; j++) {
       if (grid[i][j] === 'player') {
         let hasAdjacentPlayer = false;
         for (let di of [-1, 0, 1]) {
           for (let dj of [-1, 0, 1]) {
             if (Math.abs(di) + Math.abs(dj) === 1) {
               let ni = i + di, nj = j + dj;
-              if (ni >= 0 && ni < gridSize && nj >= 0 && nj < gridSize && grid[ni][nj] === 'player') {
+              if (ni >= 0 && ni < gridRows && nj >= 0 && nj < gridCols && grid[ni][nj] === 'player') {
                 hasAdjacentPlayer = true;
               }
             }
           }
         }
-        if (!hasAdjacentPlayer) {
+        // Prevent reverting cells near the player's city
+        if (!hasAdjacentPlayer && !(Math.abs(i - cityY) <= 2 && Math.abs(j - cityX) <= 2)) {
           grid[i][j] = 'enemy';
-          controlledCells = max(controlledCells - 1, 0);
+          controlledCells = Math.max(Math.floor(controlledCells - 1), 0);
           changes++;
         }
       }
     }
   }
-  if (changes > 0) {
-    console.log(`Reverted ${changes} non-adjacent player cells to enemy`);
-  }
 }
-  </script>
-</body>
-</html>
+</script>
+
+
+<main></main><canvas id="defaultCanvas0" class="p5Canvas" style="width: 2560px; height: 1311px; display: block;" width="2560" height="1311"></canvas></body></html>
