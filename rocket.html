@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Rocket Lander PRO</title>
+<style>
+  body { margin: 0; background: #0a0a0a; color: white; font-family: Arial; }
+  canvas { display: block; margin: auto; background: black; }
+  #ui { text-align: center; padding: 10px; }
+  button { margin: 5px; padding: 10px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <div id="stats"></div>
+  <div>⬆️ Thrust | ⬅️➡️ Move | R Restart</div>
+  <button onclick="buy('fuel')">Fuel Tank (50$)</button>
+  <button onclick="buy('engine')">Engine (75$)</button>
+  <button onclick="nextPlanet()">Next Planet</button>
+</div>
+
+<canvas id="game" width="500" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+// PLANETS
+const planets = [
+  { name: "Moon", gravity: 0.04, reward: 60, color: "#888" },
+  { name: "Mars", gravity: 0.07, reward: 90, color: "#c1440e" },
+  { name: "Earth", gravity: 0.11, reward: 140, color: "#2e8b57" },
+  { name: "Jupiter", gravity: 0.18, reward: 220, color: "#d27d2d" }
+];
+
+let planetIndex = 0;
+
+// PLAYER
+let player = { money: 100 };
+
+// ROCKET
+let rocket = {
+  x: 250,
+  y: 100,
+  vx: 0,
+  vy: 0,
+  fuel: 120,
+  maxFuel: 120,
+  thrust: 0.3,
+  alive: true,
+  landed: false
+};
+
+// LANDING PAD
+let pad = { x: 200, width: 100 };
+
+function resetRocket() {
+  rocket.x = 250;
+  rocket.y = 80;
+  rocket.vx = 0;
+  rocket.vy = 0;
+  rocket.fuel = rocket.maxFuel;
+  rocket.alive = true;
+  rocket.landed = false;
+
+  // random pad position
+  pad.x = Math.random() * (canvas.width - pad.width);
+}
+
+// INPUT
+let keys = {};
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+// SHOP
+function buy(type) {
+  if (type === "fuel" && player.money >= 50) {
+    player.money -= 50;
+    rocket.maxFuel += 40;
+  }
+  if (type === "engine" && player.money >= 75) {
+    player.money -= 75;
+    rocket.thrust += 0.04;
+  }
+}
+
+// NEXT PLANET
+function nextPlanet() {
+  if (!rocket.landed) return;
+  planetIndex = (planetIndex + 1) % planets.length;
+  resetRocket();
+}
+
+// UPDATE
+function update() {
+  const planet = planets[planetIndex];
+
+  if (!rocket.alive || rocket.landed) return;
+
+  // gravity
+  rocket.vy += planet.gravity;
+
+  // stabilization (auto slow sideways slightly)
+  rocket.vx *= 0.99;
+
+  // thrust
+  if (keys["ArrowUp"] && rocket.fuel > 0) {
+    rocket.vy -= rocket.thrust;
+    rocket.fuel -= 0.5;
+  }
+
+  // movement
+  if (keys["ArrowLeft"]) rocket.vx -= 0.08;
+  if (keys["ArrowRight"]) rocket.vx += 0.08;
+
+  rocket.x += rocket.vx;
+  rocket.y += rocket.vy;
+
+  // bounds
+  if (rocket.x < 0) rocket.x = 0;
+  if (rocket.x > canvas.width) rocket.x = canvas.width;
+
+  // landing / crash
+  if (rocket.y > canvas.height - 30) {
+    rocket.y = canvas.height - 30;
+
+    const onPad = rocket.x > pad.x && rocket.x < pad.x + pad.width;
+    const safeSpeed = Math.abs(rocket.vy) < 2 && Math.abs(rocket.vx) < 1.5;
+
+    if (onPad && safeSpeed) {
+      rocket.landed = true;
+      player.money += planet.reward;
+    } else {
+      rocket.alive = false;
+    }
+
+    rocket.vx = 0;
+    rocket.vy = 0;
+  }
+}
+
+// DRAW
+function draw() {
+  const planet = planets[planetIndex];
+
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // ground
+  ctx.fillStyle = planet.color;
+  ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
+
+  // landing pad
+  ctx.fillStyle = "yellow";
+  ctx.fillRect(pad.x, canvas.height - 25, pad.width, 5);
+
+  // rocket
+  ctx.fillStyle = "white";
+  ctx.fillRect(rocket.x - 5, rocket.y - 10, 10, 20);
+
+  // flame
+  if (keys["ArrowUp"] && rocket.fuel > 0) {
+    ctx.fillStyle = "orange";
+    ctx.fillRect(rocket.x - 3, rocket.y + 10, 6, 12);
+  }
+
+  // UI
+  document.getElementById("stats").innerHTML =
+    `Planet: ${planet.name} |
+     Fuel: ${Math.floor(rocket.fuel)} |
+     Money: $${player.money}`;
+
+  // messages
+  if (!rocket.alive) {
+    ctx.fillStyle = "red";
+    ctx.fillText("CRASH! Press R", 200, 300);
+  }
+
+  if (rocket.landed) {
+    ctx.fillStyle = "lime";
+    ctx.fillText("LANDED! Go next planet", 170, 300);
+  }
+}
+
+// RESET KEY
+document.addEventListener("keydown", e => {
+  if (e.key.toLowerCase() === "r") resetRocket();
+});
+
+// LOOP
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+resetRocket();
+loop();
+</script>
+
+</body>
+</html>
