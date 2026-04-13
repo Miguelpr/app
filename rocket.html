@@ -2,47 +2,101 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Rocket Lander PRO</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rocket Lander Universal</title>
+
 <style>
-  body { margin: 0; background: #0a0a0a; color: white; font-family: Arial; }
-  canvas { display: block; margin: auto; background: black; }
-  #ui { text-align: center; padding: 10px; }
-  button { margin: 5px; padding: 10px; cursor: pointer; }
+  body {
+    margin: 0;
+    background: black;
+    color: white;
+    font-family: Arial;
+    text-align: center;
+  }
+
+  #ui {
+    padding: 8px;
+    font-size: 14px;
+  }
+
+  canvas {
+    display: block;
+    margin: auto;
+    background: #000;
+    width: 100%;
+    max-width: 600px;
+  }
+
+  #controls {
+    position: fixed;
+    bottom: 10px;
+    width: 100%;
+  }
+
+  .btn {
+    width: 70px;
+    height: 70px;
+    margin: 10px;
+    font-size: 20px;
+    border-radius: 50%;
+    border: none;
+    background: #222;
+    color: white;
+    opacity: 0.8;
+  }
+
+  .btn:active {
+    background: #555;
+  }
+
+  @media (min-width: 768px) {
+    #controls {
+      display: none; /* hide buttons on PC */
+    }
+  }
 </style>
 </head>
 <body>
 
 <div id="ui">
   <div id="stats"></div>
-  <div>⬆️ Thrust | ⬅️➡️ Move | R Restart</div>
-  <button onclick="buy('fuel')">Fuel Tank (50$)</button>
-  <button onclick="buy('engine')">Engine (75$)</button>
-  <button onclick="nextPlanet()">Next Planet</button>
+  <div>PC: ⬆️⬅️➡️ | Mobile: Buttons</div>
 </div>
 
-<canvas id="game" width="500" height="600"></canvas>
+<canvas id="game"></canvas>
+
+<div id="controls">
+  <button class="btn" id="left">⬅️</button>
+  <button class="btn" id="thrust">⬆️</button>
+  <button class="btn" id="right">➡️</button>
+</div>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
+// RESPONSIVE
+function resize() {
+  canvas.width = Math.min(window.innerWidth, 600);
+  canvas.height = window.innerHeight * 0.7;
+}
+resize();
+window.addEventListener("resize", resize);
+
 // PLANETS
 const planets = [
   { name: "Moon", gravity: 0.04, reward: 60, color: "#888" },
   { name: "Mars", gravity: 0.07, reward: 90, color: "#c1440e" },
-  { name: "Earth", gravity: 0.11, reward: 140, color: "#2e8b57" },
-  { name: "Jupiter", gravity: 0.18, reward: 220, color: "#d27d2d" }
+  { name: "Earth", gravity: 0.11, reward: 140, color: "#2e8b57" }
 ];
 
 let planetIndex = 0;
-
-// PLAYER
 let player = { money: 100 };
 
 // ROCKET
 let rocket = {
-  x: 250,
-  y: 100,
+  x: 200,
+  y: 80,
   vx: 0,
   vy: 0,
   fuel: 120,
@@ -52,11 +106,11 @@ let rocket = {
   landed: false
 };
 
-// LANDING PAD
-let pad = { x: 200, width: 100 };
+// PAD
+let pad = { x: 150, width: 100 };
 
 function resetRocket() {
-  rocket.x = 250;
+  rocket.x = canvas.width / 2;
   rocket.y = 80;
   rocket.vx = 0;
   rocket.vy = 0;
@@ -64,33 +118,44 @@ function resetRocket() {
   rocket.alive = true;
   rocket.landed = false;
 
-  // random pad position
   pad.x = Math.random() * (canvas.width - pad.width);
 }
 
-// INPUT
-let keys = {};
-document.addEventListener("keydown", e => keys[e.key] = true);
-document.addEventListener("keyup", e => keys[e.key] = false);
+// INPUT (KEYBOARD + TOUCH)
+let input = { left: false, right: false, thrust: false };
 
-// SHOP
-function buy(type) {
-  if (type === "fuel" && player.money >= 50) {
-    player.money -= 50;
-    rocket.maxFuel += 40;
-  }
-  if (type === "engine" && player.money >= 75) {
-    player.money -= 75;
-    rocket.thrust += 0.04;
-  }
+// keyboard
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowLeft") input.left = true;
+  if (e.key === "ArrowRight") input.right = true;
+  if (e.key === "ArrowUp") input.thrust = true;
+  if (e.key.toLowerCase() === "r") resetRocket();
+});
+
+document.addEventListener("keyup", e => {
+  if (e.key === "ArrowLeft") input.left = false;
+  if (e.key === "ArrowRight") input.right = false;
+  if (e.key === "ArrowUp") input.thrust = false;
+});
+
+// touch buttons
+function bindButton(id, key) {
+  const btn = document.getElementById(id);
+
+  btn.addEventListener("touchstart", e => {
+    e.preventDefault();
+    input[key] = true;
+  });
+
+  btn.addEventListener("touchend", () => input[key] = false);
+
+  btn.addEventListener("mousedown", () => input[key] = true);
+  btn.addEventListener("mouseup", () => input[key] = false);
 }
 
-// NEXT PLANET
-function nextPlanet() {
-  if (!rocket.landed) return;
-  planetIndex = (planetIndex + 1) % planets.length;
-  resetRocket();
-}
+bindButton("left", "left");
+bindButton("right", "right");
+bindButton("thrust", "thrust");
 
 // UPDATE
 function update() {
@@ -98,37 +163,30 @@ function update() {
 
   if (!rocket.alive || rocket.landed) return;
 
-  // gravity
   rocket.vy += planet.gravity;
-
-  // stabilization (auto slow sideways slightly)
   rocket.vx *= 0.99;
 
-  // thrust
-  if (keys["ArrowUp"] && rocket.fuel > 0) {
+  if (input.thrust && rocket.fuel > 0) {
     rocket.vy -= rocket.thrust;
     rocket.fuel -= 0.5;
   }
 
-  // movement
-  if (keys["ArrowLeft"]) rocket.vx -= 0.08;
-  if (keys["ArrowRight"]) rocket.vx += 0.08;
+  if (input.left) rocket.vx -= 0.08;
+  if (input.right) rocket.vx += 0.08;
 
   rocket.x += rocket.vx;
   rocket.y += rocket.vy;
 
-  // bounds
   if (rocket.x < 0) rocket.x = 0;
   if (rocket.x > canvas.width) rocket.x = canvas.width;
 
-  // landing / crash
   if (rocket.y > canvas.height - 30) {
     rocket.y = canvas.height - 30;
 
     const onPad = rocket.x > pad.x && rocket.x < pad.x + pad.width;
-    const safeSpeed = Math.abs(rocket.vy) < 2 && Math.abs(rocket.vx) < 1.5;
+    const safe = Math.abs(rocket.vy) < 2 && Math.abs(rocket.vx) < 1.5;
 
-    if (onPad && safeSpeed) {
+    if (onPad && safe) {
       rocket.landed = true;
       player.money += planet.reward;
     } else {
@@ -147,45 +205,41 @@ function draw() {
   ctx.fillStyle = "black";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // ground
   ctx.fillStyle = planet.color;
   ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
 
-  // landing pad
   ctx.fillStyle = "yellow";
   ctx.fillRect(pad.x, canvas.height - 25, pad.width, 5);
 
-  // rocket
   ctx.fillStyle = "white";
   ctx.fillRect(rocket.x - 5, rocket.y - 10, 10, 20);
 
-  // flame
-  if (keys["ArrowUp"] && rocket.fuel > 0) {
+  if (input.thrust && rocket.fuel > 0) {
     ctx.fillStyle = "orange";
     ctx.fillRect(rocket.x - 3, rocket.y + 10, 6, 12);
   }
 
-  // UI
   document.getElementById("stats").innerHTML =
-    `Planet: ${planet.name} |
-     Fuel: ${Math.floor(rocket.fuel)} |
-     Money: $${player.money}`;
+    `Planet: ${planet.name} | Fuel: ${Math.floor(rocket.fuel)} | Money: $${player.money}`;
 
-  // messages
   if (!rocket.alive) {
     ctx.fillStyle = "red";
-    ctx.fillText("CRASH! Press R", 200, 300);
+    ctx.fillText("CRASH! Press R / Tap", canvas.width/2 - 80, canvas.height/2);
   }
 
   if (rocket.landed) {
     ctx.fillStyle = "lime";
-    ctx.fillText("LANDED! Go next planet", 170, 300);
+    ctx.fillText("LANDED! Tap / Click", canvas.width/2 - 70, canvas.height/2);
   }
 }
 
-// RESET KEY
-document.addEventListener("keydown", e => {
-  if (e.key.toLowerCase() === "r") resetRocket();
+// CLICK / TAP
+canvas.addEventListener("click", () => {
+  if (!rocket.alive) resetRocket();
+  else if (rocket.landed) {
+    planetIndex = (planetIndex + 1) % planets.length;
+    resetRocket();
+  }
 });
 
 // LOOP
