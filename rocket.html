@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rocket Lander Universal</title>
+<title>Rocket Lander Fullscreen</title>
 
 <style>
   body {
@@ -11,74 +11,80 @@
     background: black;
     color: white;
     font-family: Arial;
-    text-align: center;
-  }
-
-  #ui {
-    padding: 8px;
-    font-size: 14px;
+    overflow: hidden;
   }
 
   canvas {
-    display: block;
-    margin: auto;
-    background: #000;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  #ui {
+    position: absolute;
+    top: 10px;
     width: 100%;
-    max-width: 600px;
+    text-align: center;
+    font-size: 14px;
+    pointer-events: none;
   }
 
   #controls {
-    position: fixed;
-    bottom: 10px;
+    position: absolute;
+    bottom: 0;
     width: 100%;
+    height: 40%;
+    pointer-events: none;
   }
 
   .btn {
-    width: 70px;
-    height: 70px;
-    margin: 10px;
-    font-size: 20px;
+    position: absolute;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     border: none;
-    background: #222;
+    font-size: 22px;
+    background: rgba(255,255,255,0.08);
     color: white;
-    opacity: 0.8;
+    pointer-events: auto;
   }
 
   .btn:active {
-    background: #555;
+    background: rgba(255,255,255,0.2);
   }
 
+  #left { left: 20px; bottom: 20px; }
+  #right { left: 120px; bottom: 20px; }
+  #thrust { right: 30px; bottom: 40px; width: 90px; height: 90px; }
+
   @media (min-width: 768px) {
-    #controls {
-      display: none; /* hide buttons on PC */
-    }
+    #controls { display: none; }
   }
 </style>
 </head>
 <body>
 
+<canvas id="game"></canvas>
+
 <div id="ui">
   <div id="stats"></div>
-  <div>PC: ⬆️⬅️➡️ | Mobile: Buttons</div>
+  <div>⬆️⬅️➡️ or touch</div>
 </div>
-
-<canvas id="game"></canvas>
 
 <div id="controls">
   <button class="btn" id="left">⬅️</button>
-  <button class="btn" id="thrust">⬆️</button>
   <button class="btn" id="right">➡️</button>
+  <button class="btn" id="thrust">🚀</button>
 </div>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-// RESPONSIVE
+// FULLSCREEN
 function resize() {
-  canvas.width = Math.min(window.innerWidth, 600);
-  canvas.height = window.innerHeight * 0.7;
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 }
 resize();
 window.addEventListener("resize", resize);
@@ -107,11 +113,11 @@ let rocket = {
 };
 
 // PAD
-let pad = { x: 150, width: 100 };
+let pad = { x: 150, width: 120 };
 
 function resetRocket() {
   rocket.x = canvas.width / 2;
-  rocket.y = 80;
+  rocket.y = 100;
   rocket.vx = 0;
   rocket.vy = 0;
   rocket.fuel = rocket.maxFuel;
@@ -121,10 +127,10 @@ function resetRocket() {
   pad.x = Math.random() * (canvas.width - pad.width);
 }
 
-// INPUT (KEYBOARD + TOUCH)
+// INPUT
 let input = { left: false, right: false, thrust: false };
 
-// keyboard
+// KEYBOARD
 document.addEventListener("keydown", e => {
   if (e.key === "ArrowLeft") input.left = true;
   if (e.key === "ArrowRight") input.right = true;
@@ -138,7 +144,7 @@ document.addEventListener("keyup", e => {
   if (e.key === "ArrowUp") input.thrust = false;
 });
 
-// touch buttons
+// TOUCH BUTTONS
 function bindButton(id, key) {
   const btn = document.getElementById(id);
 
@@ -180,8 +186,8 @@ function update() {
   if (rocket.x < 0) rocket.x = 0;
   if (rocket.x > canvas.width) rocket.x = canvas.width;
 
-  if (rocket.y > canvas.height - 30) {
-    rocket.y = canvas.height - 30;
+  if (rocket.y > canvas.height - 40) {
+    rocket.y = canvas.height - 40;
 
     const onPad = rocket.x > pad.x && rocket.x < pad.x + pad.width;
     const safe = Math.abs(rocket.vy) < 2 && Math.abs(rocket.vx) < 1.5;
@@ -205,18 +211,22 @@ function draw() {
   ctx.fillStyle = "black";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  // ground
   ctx.fillStyle = planet.color;
-  ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
+  ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
 
+  // pad
   ctx.fillStyle = "yellow";
-  ctx.fillRect(pad.x, canvas.height - 25, pad.width, 5);
+  ctx.fillRect(pad.x, canvas.height - 35, pad.width, 6);
 
+  // rocket
   ctx.fillStyle = "white";
-  ctx.fillRect(rocket.x - 5, rocket.y - 10, 10, 20);
+  ctx.fillRect(rocket.x - 6, rocket.y - 12, 12, 24);
 
+  // flame
   if (input.thrust && rocket.fuel > 0) {
     ctx.fillStyle = "orange";
-    ctx.fillRect(rocket.x - 3, rocket.y + 10, 6, 12);
+    ctx.fillRect(rocket.x - 4, rocket.y + 12, 8, 14);
   }
 
   document.getElementById("stats").innerHTML =
@@ -224,12 +234,12 @@ function draw() {
 
   if (!rocket.alive) {
     ctx.fillStyle = "red";
-    ctx.fillText("CRASH! Press R / Tap", canvas.width/2 - 80, canvas.height/2);
+    ctx.fillText("CRASH - Tap / Press R", canvas.width/2 - 90, canvas.height/2);
   }
 
   if (rocket.landed) {
     ctx.fillStyle = "lime";
-    ctx.fillText("LANDED! Tap / Click", canvas.width/2 - 70, canvas.height/2);
+    ctx.fillText("LANDED - Tap to continue", canvas.width/2 - 100, canvas.height/2);
   }
 }
 
